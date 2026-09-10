@@ -1,0 +1,701 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sonar.local/schema/experiment-v1.json",
+  "title": "SONAR Simulator Experiment Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "SchemaVersion",
+    "Name",
+    "Version",
+    "ExperimentSettings",
+    "Phases"
+  ],
+  "properties": {
+    "SchemaVersion": {
+      "const": 1
+    },
+    "Name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "InstructionsFile": {
+      "type": "string",
+      "default": "instructions.md"
+    },
+    "ExperimentSettings": {
+      "$ref": "#/$defs/settings"
+    },
+    "Phases": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/phase"
+      }
+    }
+  },
+  "$defs": {
+    "yesNo": {
+      "enum": [
+        "Yes",
+        "No"
+      ]
+    },
+    "freqTuple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Frequency",
+        "Width",
+        "Alpha"
+      ],
+      "properties": {
+        "Frequency": {
+          "type": "number",
+          "minimum": 0
+        },
+        "Width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "Alpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "strength": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "Width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 20
+        },
+        "Alpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.6
+        }
+      }
+    },
+    "signalDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Name",
+        "Classification",
+        "FreqTuples"
+      ],
+      "properties": {
+        "Name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "TrainingAllowed": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "AudioFile": {
+          "type": "string"
+        },
+        "AudioVolume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "Classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "SignalStrength": {
+          "$ref": "#/$defs/strength"
+        },
+        "FreqTuples": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/freqTuple"
+          }
+        }
+      }
+    },
+    "signalOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Name"
+      ],
+      "properties": {
+        "Name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "TrainingAllowed": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "AudioFile": {
+          "type": "string"
+        },
+        "AudioVolume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "Classification": {
+          "type": "string"
+        },
+        "SignalStrength": {
+          "$ref": "#/$defs/strength"
+        },
+        "FreqTuples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/freqTuple"
+          }
+        }
+      }
+    },
+    "signalInstance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Signal",
+        "AppearSec",
+        "Bearing"
+      ],
+      "properties": {
+        "Signal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "AppearSec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "Bearing": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "RateDegSec": {
+          "type": "number",
+          "default": 0
+        },
+        "DurationSec": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ID": {
+          "type": "string"
+        },
+        "AudioFile": {
+          "type": "string"
+        },
+        "AudioVolume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "Classification": {
+          "type": "string"
+        },
+        "SignalStrength": {
+          "$ref": "#/$defs/strength"
+        },
+        "FreqTuples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/freqTuple"
+          }
+        },
+        "AlertEnabled": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "AlertText": {
+          "type": "string"
+        },
+        "AlertOffsetSec": {
+          "type": "number"
+        },
+        "AlertBearing": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "AlertDurationSec": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "AlertType": {
+          "type": "string",
+          "enum": [
+            "VALID",
+            "INVALID"
+          ]
+        }
+      }
+    },
+    "alert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Text",
+        "AppearSec",
+        "Bearing"
+      ],
+      "properties": {
+        "Text": {
+          "type": "string"
+        },
+        "AppearSec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "Bearing": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "DurationSec": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "Type": {
+          "type": "string",
+          "enum": [
+            "VALID",
+            "INVALID"
+          ]
+        },
+        "SignalID": {
+          "type": "string"
+        }
+      }
+    },
+    "bth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "DegStart": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "DegEnd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "DegTicksEvery": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 360
+        },
+        "DegLabelsEvery": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 360
+        },
+        "TimeStart": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "TimeEnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "TimeTicksEvery": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "TimeLabelsEvery": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "SelectionWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 360
+        }
+      }
+    },
+    "lofar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "HzStart": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "HzEnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "HzTicksEvery": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "HzLabelsEvery": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "TimeStart": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "TimeEnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "TimeTicksEvery": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "TimeLabelsEvery": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "commonOverrides": {
+      "type": "object",
+      "properties": {
+        "AutoStart": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "BackgroundAudio": {
+          "type": "string"
+        },
+        "BackgroundAudioVolume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "TrainingAreaEnabled": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "FeedbackEnabled": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "ClassificationTallyEnabled": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "AlertsEnabled": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "BTHOverlapAudio": {
+          "$ref": "#/$defs/yesNo",
+          "description": "Controls only selections containing multiple signals. Yes plays all selected signal clips together; No suppresses signal audio for overlapping selections. A single selected signal still plays when SignalAudioEnabled is Yes, and background audio continues independently."
+        },
+        "SignalAudioEnabled": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "HideLofarSignalsIfNoSelectedBTH": {
+          "$ref": "#/$defs/yesNo",
+          "description": "When Yes and no BTH region is selected, LOFAR waterfalls show background noise only. Selecting a BTH region displays frequency signals for matching contacts. When No, an unselected BTH shows frequencies for all signals visible in the BTH."
+        },
+        "JitterFactor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "BackgroundNoise": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "BTHView": {
+          "$ref": "#/$defs/bth"
+        },
+        "LOFARViews": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/lofar"
+          }
+        },
+        "SignalDurationSec": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "AlertOffsetSec": {
+          "type": "number"
+        },
+        "AlertDurationSec": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ShowElapsedTime": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "ShowRemainingTime": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "WaterfallScanRateHz": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "WaterfallPalette": {
+          "enum": [
+            "Green",
+            "Grayscale",
+            "Cividis"
+          ]
+        }
+      }
+    },
+    "settings": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonOverrides"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "PhaseOrder",
+            "SignalDefinitions",
+            "RandomizationSeed",
+            "LOFARViews"
+          ],
+          "properties": {
+            "PhaseOrder": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "SignalDefinitions": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/signalDefinition"
+              }
+            },
+            "RandomizationSeed": {
+              "type": "integer",
+              "not": {
+                "const": 0
+              }
+            },
+            "AutoStart": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "BackgroundAudio": {
+              "type": "string"
+            },
+            "BackgroundAudioVolume": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "TrainingAreaEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "FeedbackEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "ClassificationTallyEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "AlertsEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "BTHOverlapAudio": {
+              "$ref": "#/$defs/yesNo",
+              "description": "Optional phase override for multiple-signal selection audio. It does not suppress audio for a single selected signal."
+            },
+            "SignalAudioEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "HideLofarSignalsIfNoSelectedBTH": {
+              "$ref": "#/$defs/yesNo",
+              "description": "When Yes and no BTH region is selected, LOFAR waterfalls show background noise only. Selecting a BTH region displays frequency signals for matching contacts. When No, an unselected BTH shows frequencies for all signals visible in the BTH.",
+              "default": "No"
+            },
+            "JitterFactor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "BackgroundNoise": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "BTHView": {
+              "$ref": "#/$defs/bth"
+            },
+            "LOFARViews": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/lofar"
+              }
+            },
+            "SignalDurationSec": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "AlertOffsetSec": {
+              "type": "number"
+            },
+            "AlertDurationSec": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "ShowElapsedTime": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "ShowRemainingTime": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "WaterfallScanRateHz": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 120
+            },
+            "WaterfallPalette": {
+              "enum": [
+                "Green",
+                "Grayscale",
+                "Cividis"
+              ]
+            },
+            "ShowResultsAtEnd": {
+              "$ref": "#/$defs/yesNo"
+            }
+          }
+        }
+      ]
+    },
+    "phase": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonOverrides"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "Signals"
+          ],
+          "properties": {
+            "AutoStart": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "BackgroundAudio": {
+              "type": "string"
+            },
+            "BackgroundAudioVolume": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "TrainingAreaEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "FeedbackEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "ClassificationTallyEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "AlertsEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "BTHOverlapAudio": {
+              "$ref": "#/$defs/yesNo",
+              "description": "Optional phase override for multiple-signal selection audio. It does not suppress audio for a single selected signal."
+            },
+            "SignalAudioEnabled": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "HideLofarSignalsIfNoSelectedBTH": {
+              "$ref": "#/$defs/yesNo",
+              "description": "Optional phase override. When Yes and no BTH region is selected, LOFAR waterfalls show background noise only. Selecting a BTH region displays frequency signals for matching contacts. When No, an unselected BTH shows frequencies for all signals visible in the BTH."
+            },
+            "JitterFactor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "BackgroundNoise": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "BTHView": {
+              "$ref": "#/$defs/bth"
+            },
+            "LOFARViews": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/lofar"
+              }
+            },
+            "SignalDefinitions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/signalOverride"
+              }
+            },
+            "SignalDurationSec": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "AlertOffsetSec": {
+              "type": "number"
+            },
+            "AlertDurationSec": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "Signals": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/signalInstance"
+              }
+            },
+            "Alerts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/alert"
+              }
+            },
+            "ShowElapsedTime": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "ShowRemainingTime": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "WaterfallScanRateHz": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 120
+            },
+            "WaterfallPalette": {
+              "enum": [
+                "Green",
+                "Grayscale",
+                "Cividis"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

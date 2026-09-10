@@ -1,0 +1,257 @@
+{
+  "SchemaVersion": 1,
+  "Name": "Multi-Band Overlap and Alerts",
+  "Version": "1.0",
+  "InstructionsFile": "instructions.md",
+  "ExperimentSettings": {
+    "PhaseOrder": [
+      "OverlapAudio",
+      "SilentOverlap"
+    ],
+    "SignalDefinitions": {
+      "Submarine": {
+        "Name": "Submarine",
+        "AudioFile": "Sounds/submarine.wav",
+        "AudioVolume": 0.52,
+        "Classification": "Subsurface",
+        "SignalStrength": {
+          "Width": 12,
+          "Alpha": 0.78
+        },
+        "FreqTuples": [
+          {
+            "Frequency": 62,
+            "Width": 4,
+            "Alpha": 0.85
+          },
+          {
+            "Frequency": 124,
+            "Width": 5,
+            "Alpha": 0.7
+          },
+          {
+            "Frequency": 248,
+            "Width": 7,
+            "Alpha": 0.48
+          },
+          {
+            "Frequency": 1030,
+            "Width": 16,
+            "Alpha": 0.35
+          }
+        ]
+      },
+      "Warship": {
+        "Name": "Surface Warship",
+        "AudioFile": "Sounds/warship.wav",
+        "AudioVolume": 0.5,
+        "Classification": "Surface Combatant",
+        "SignalStrength": {
+          "Width": 16,
+          "Alpha": 0.68
+        },
+        "FreqTuples": [
+          {
+            "Frequency": 92,
+            "Width": 6,
+            "Alpha": 0.75
+          },
+          {
+            "Frequency": 184,
+            "Width": 7,
+            "Alpha": 0.6
+          },
+          {
+            "Frequency": 690,
+            "Width": 12,
+            "Alpha": 0.43
+          },
+          {
+            "Frequency": 1380,
+            "Width": 20,
+            "Alpha": 0.32
+          }
+        ]
+      },
+      "Biologic": {
+        "Name": "Biologic",
+        "AudioFile": "Sounds/biologic.wav",
+        "AudioVolume": 0.4,
+        "Classification": "Biologic",
+        "SignalStrength": {
+          "Width": 26,
+          "Alpha": 0.48
+        },
+        "FreqTuples": [
+          {
+            "Frequency": 410,
+            "Width": 32,
+            "Alpha": 0.38
+          },
+          {
+            "Frequency": 880,
+            "Width": 44,
+            "Alpha": 0.32
+          }
+        ]
+      }
+    },
+    "AutoStart": "Yes",
+    "BackgroundAudio": "Sounds/ocean.wav",
+    "BackgroundAudioVolume": 0.2,
+    "TrainingAreaEnabled": "Yes",
+    "FeedbackEnabled": "Yes",
+    "ClassificationTallyEnabled": "Yes",
+    "AlertsEnabled": "Yes",
+    "BTHOverlapAudio": "Yes",
+    "SignalAudioEnabled": "Yes",
+    "HideLofarSignalsIfNoSelectedBTH": "Yes",
+    "JitterFactor": 0.62,
+    "BackgroundNoise": 0.2,
+    "BTHView": {
+      "DegStart": 0,
+      "DegEnd": 360,
+      "DegTicksEvery": 45,
+      "DegLabelsEvery": 45,
+      "TimeStart": 0,
+      "TimeEnd": 40,
+      "TimeTicksEvery": 10,
+      "TimeLabelsEvery": 20,
+      "SelectionWidth": 20
+    },
+    "LOFARViews": [
+      {
+        "HzStart": 0,
+        "HzEnd": 500,
+        "HzTicksEvery": 25,
+        "HzLabelsEvery": 100,
+        "TimeStart": 0,
+        "TimeEnd": 40,
+        "TimeTicksEvery": 10,
+        "TimeLabelsEvery": 20
+      },
+      {
+        "HzStart": 500,
+        "HzEnd": 1600,
+        "HzTicksEvery": 50,
+        "HzLabelsEvery": 250,
+        "TimeStart": 0,
+        "TimeEnd": 40,
+        "TimeTicksEvery": 10,
+        "TimeLabelsEvery": 20
+      }
+    ],
+    "SignalDurationSec": 35,
+    "AlertOffsetSec": 5,
+    "AlertDurationSec": 9,
+    "RandomizationSeed": 90210617,
+    "ShowElapsedTime": "Yes",
+    "ShowRemainingTime": "Yes",
+    "WaterfallScanRateHz": 24,
+    "WaterfallPalette": "Cividis",
+    "ShowResultsAtEnd": "No"
+  },
+  "Phases": {
+    "OverlapAudio": {
+      "AutoStart": "Yes",
+      "BTHOverlapAudio": "Yes",
+      "SignalDefinitions": [
+        {
+          "Name": "Submarine",
+          "TrainingAllowed": "Yes"
+        },
+        {
+          "Name": "Warship",
+          "TrainingAllowed": "Yes"
+        },
+        {
+          "Name": "Biologic",
+          "TrainingAllowed": "Yes"
+        }
+      ],
+      "Signals": [
+        {
+          "Signal": "Submarine",
+          "ID": "OA-SUB-01",
+          "AppearSec": 2,
+          "Bearing": 86,
+          "RateDegSec": 0.08,
+          "DurationSec": 38,
+          "AlertEnabled": "Yes"
+        },
+        {
+          "Signal": "Warship",
+          "ID": "OA-WAR-01",
+          "AppearSec": 8,
+          "Bearing": 94,
+          "RateDegSec": -0.04,
+          "DurationSec": 34,
+          "AlertEnabled": "Yes"
+        },
+        {
+          "Signal": "Biologic",
+          "ID": "OA-BIO-01",
+          "AppearSec": 18,
+          "Bearing": 210,
+          "RateDegSec": 0.3,
+          "DurationSec": 22
+        }
+      ],
+      "Alerts": [
+        {
+          "Text": "Possible false cue",
+          "AppearSec": 14,
+          "Bearing": 300,
+          "DurationSec": 8,
+          "Type": "INVALID"
+        }
+      ]
+    },
+    "SilentOverlap": {
+      "AutoStart": "No",
+      "BTHOverlapAudio": "No",
+      "TrainingAreaEnabled": "No",
+      "FeedbackEnabled": "Yes",
+      "SignalDefinitions": [
+        {
+          "Name": "Submarine"
+        },
+        {
+          "Name": "Warship"
+        },
+        {
+          "Name": "Biologic"
+        }
+      ],
+      "Signals": [
+        {
+          "Signal": "Warship",
+          "ID": "SO-WAR-01",
+          "AppearSec": 3,
+          "Bearing": 350,
+          "RateDegSec": 0.28,
+          "DurationSec": 32,
+          "AlertEnabled": "Yes"
+        },
+        {
+          "Signal": "Submarine",
+          "ID": "SO-SUB-01",
+          "AppearSec": 10,
+          "Bearing": 4,
+          "RateDegSec": -0.18,
+          "DurationSec": 30,
+          "AlertEnabled": "Yes"
+        },
+        {
+          "Signal": "Biologic",
+          "ID": "SO-BIO-01",
+          "AppearSec": 20,
+          "Bearing": 160,
+          "RateDegSec": -0.2,
+          "DurationSec": 24
+        }
+      ],
+      "HideLofarSignalsIfNoSelectedBTH": "No"
+    }
+  }
+}

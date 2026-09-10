@@ -1,0 +1,14 @@
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+.vs/
+*.csproj
+*.sln
+*.user
+Server/Deploy/Results/*
+Server/Deploy/Config/*
+!Server/Deploy/Results/.gitkeep
+!Server/Deploy/Config/.gitkeep

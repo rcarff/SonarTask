@@ -1,0 +1,278 @@
+{
+  "SchemaVersion": 1,
+  "Name": "Vessel Scenario",
+  "Version": "1.0",
+  "InstructionsFile": "instructions.md",
+  "ExperimentSettings": {
+    "PhaseOrder": ["Orientation1", "Practice1", "Test1", "Orientation2", "Practice2", "Test2"],
+    "RandomizationSeed": 93856105,
+    "AutoStart": "No",
+    "BackgroundAudio": "Sounds/FX_BBbgnd_looped.wav",
+    "BackgroundAudioVolume": 0.8,
+    "BTHOverlapAudio": "No",
+    "SignalAudioEnabled": "No",
+    "HideLofarSignalsIfNoSelectedBTH": "Yes",
+    "TrainingAreaEnabled": "No",
+    "FeedbackEnabled": "Yes",
+    "ClassificationTallyEnabled": "Yes",
+    "JitterFactor": 1.0,
+    "ShowElapsedTime": "Yes",
+    "ShowRemainingTime": "No",
+    "WaterfallScanRateHz": 20,
+    "WaterfallPalette": "Green",
+    "BackgroundNoise": 0.26,
+    "SignalDurationSec": 30,
+    "ShowResultsAtEnd": "Yes",
+    "AlertsEnabled": "No",
+    "AlertOffsetSec": 4,
+    "AlertDurationSec": 8,
+    "LOFARViews": [
+      {"HzStart":   0, "HzEnd": 1750, "HzTicksEvery": 250, "HzLabelsEvery":  250,
+       "TimeStart": 0, "TimeEnd": 30, "TimeTicksEvery": 15, "TimeLabelsEvery": 15}
+    ],
+    "BTHView": {
+      "DegStart": 180, "DegEnd": 180, "DegTicksEvery": 90, "DegLabelsEvery": 90,
+      "TimeStart":  0, "TimeEnd": 30, "TimeTicksEvery": 15, "TimeLabelsEvery": 15,
+      "SelectionWidth": 10
+    },
+    "SignalDefinitions": {
+      "Container Ship": {
+        "Name": "Container Ship",
+        "AudioFile": "Sounds/BB_Frghtr2Hi_looped.wav", "AudioVolume": 0.9,
+        "Classification": "Merchant",
+        "SignalStrength": {"Width": 1, "Alpha": 0.2},
+        "FreqTuples": [{"Frequency": 45, "Width": 29, "Alpha": 0.85},
+                       {"Frequency": 155, "Width": 40, "Alpha": 0.26},
+                       {"Frequency": 320, "Width": 60, "Alpha": 0.86},
+                       {"Frequency": 1100, "Width": 30, "Alpha": 0.16},
+                       {"Frequency": 1700, "Width": 20, "Alpha": 0.36}]
+      },
+      "Torpedo": {
+        "Name": "Torpedo",
+        "AudioFile": "Sounds/BB_torp_HI_looped_60s.wav", "AudioVolume": 0.9,
+        "Classification": "Weapon",
+        "SignalStrength": {"Width": 1, "Alpha": 0.2},
+        "FreqTuples": [{"Frequency": 20, "Width": 19, "Alpha": 0.85},
+                       {"Frequency": 125, "Width": 50, "Alpha": 0.66},
+                       {"Frequency": 175, "Width": 30, "Alpha": 0.66},
+                       {"Frequency": 500, "Width": 45, "Alpha": 0.66},
+                       {"Frequency": 800, "Width": 15, "Alpha": 0.66}]
+      },
+      "Sub Diesel": {
+        "Name": "Sub Diesel",
+        "AudioFile": "Sounds/BB_sub_diesel_looped_60s.wav", "AudioVolume": 0.9,
+        "Classification": "Merchant",
+        "SignalStrength": {"Width": 1, "Alpha": 0.2},
+        "FreqTuples": [{"Frequency": 60, "Width": 26, "Alpha": 0.85},
+                       {"Frequency": 125, "Width": 43, "Alpha": 0.26},
+                       {"Frequency": 350, "Width": 50, "Alpha": 0.76},
+                       {"Frequency": 1000, "Width": 30, "Alpha": 0.16},
+                       {"Frequency": 1725, "Width": 20, "Alpha": 0.46}]
+      }
+    }
+  },
+  "Phases": {
+    "Orientation1": {
+      "TrainingAreaEnabled": "Yes",
+      "SignalDefinitions": [
+        {"Name": "Container Ship", "Classification": "Container Ship", "TrainingAllowed": "Yes",	"SignalStrength": {"Width": 1.5, "Alpha": 0.5}},
+        {"Name": "Torpedo",        "Classification": "Torpedo",        "TrainingAllowed": "Yes",	"SignalStrength": {"Width": 1.5, "Alpha": 0.5}}
+      ],
+      "Signals": [
+        {"Signal": "Torpedo"       , "AppearSec":   1, "Bearing":  223, "RateDegSec":  0.24},
+        {"Signal": "Container Ship", "AppearSec":  19, "Bearing":   42, "RateDegSec":  0.12},
+        {"Signal": "Torpedo"       , "AppearSec":  39, "Bearing":  169, "RateDegSec":  0.38},
+        {"Signal": "Container Ship", "AppearSec":  59, "Bearing":  302, "RateDegSec":  0.25}
+      ]
+    },
+    "Practice1": {
+      "SignalDefinitions": [
+        {"Name": "Container Ship", "Classification": "Container Ship"},
+        {"Name": "Torpedo",        "Classification": "Torpedo"}
+      ],
+      "Signals": [
+        {"Signal": "Torpedo"       , "AppearSec":   1, "Bearing":  194, "RateDegSec":  0.26},
+        {"Signal": "Container Ship", "AppearSec":  17, "Bearing":  239, "RateDegSec":  0.25},
+        {"Signal": "Container Ship", "AppearSec":  33, "Bearing":  287, "RateDegSec": -0.00},
+        {"Signal": "Torpedo"       , "AppearSec":  49, "Bearing":  336, "RateDegSec":  0.29},
+        {"Signal": "Container Ship", "AppearSec":  65, "Bearing":   31, "RateDegSec":  0.05},
+        {"Signal": "Torpedo"       , "AppearSec":  82, "Bearing":   76, "RateDegSec": -0.35},
+        {"Signal": "Torpedo"       , "AppearSec":  98, "Bearing":  124, "RateDegSec": -0.33},
+        {"Signal": "Container Ship", "AppearSec": 114, "Bearing":  169, "RateDegSec": -0.24},
+        {"Signal": "Torpedo"       , "AppearSec": 130, "Bearing":  223, "RateDegSec":  0.35},
+        {"Signal": "Container Ship", "AppearSec": 146, "Bearing":   57, "RateDegSec":  0.22},
+        {"Signal": "Container Ship", "AppearSec": 162, "Bearing":  269, "RateDegSec": -0.22},
+        {"Signal": "Torpedo"       , "AppearSec": 179, "Bearing":  143, "RateDegSec":  0.29}
+      ]
+    },
+    "Test1": {
+      "SignalDefinitions": [
+        {"Name": "Container Ship", "Classification": "Container Ship"},
+        {"Name": "Torpedo",        "Classification": "Torpedo"}
+      ],
+      "Signals": [
+        {"Signal": "Container Ship", "AppearSec":   1, "Bearing":  135, "RateDegSec":  0.18},
+        {"Signal": "Container Ship", "AppearSec":  20, "Bearing":  352, "RateDegSec":  0.40},
+        {"Signal": "Torpedo"       , "AppearSec":  40, "Bearing":  183, "RateDegSec":  0.32},
+        {"Signal": "Torpedo"       , "AppearSec":  59, "Bearing":   14, "RateDegSec": -0.37},
+        {"Signal": "Container Ship", "AppearSec":  78, "Bearing":   48, "RateDegSec": -0.41},
+        {"Signal": "Torpedo"       , "AppearSec":  97, "Bearing":  248, "RateDegSec": -0.46},
+        {"Signal": "Container Ship", "AppearSec": 117, "Bearing":  233, "RateDegSec": -0.01},
+        {"Signal": "Container Ship", "AppearSec": 136, "Bearing":  293, "RateDegSec": -0.26},
+        {"Signal": "Torpedo"       , "AppearSec": 155, "Bearing":  156, "RateDegSec": -0.36},
+        {"Signal": "Torpedo"       , "AppearSec": 175, "Bearing":  136, "RateDegSec":  0.16},
+        {"Signal": "Torpedo"       , "AppearSec": 194, "Bearing":  212, "RateDegSec": -0.17},
+        {"Signal": "Container Ship", "AppearSec": 213, "Bearing":   87, "RateDegSec": -0.10},
+        {"Signal": "Container Ship", "AppearSec": 232, "Bearing":  281, "RateDegSec": -0.10},
+        {"Signal": "Torpedo"       , "AppearSec": 252, "Bearing":   70, "RateDegSec":  0.19},
+        {"Signal": "Torpedo"       , "AppearSec": 271, "Bearing":  113, "RateDegSec": -0.27},
+        {"Signal": "Container Ship", "AppearSec": 290, "Bearing":   54, "RateDegSec":  0.16},
+        {"Signal": "Container Ship", "AppearSec": 310, "Bearing":  146, "RateDegSec": -0.36},
+        {"Signal": "Torpedo"       , "AppearSec": 329, "Bearing":  321, "RateDegSec":  0.43},
+        {"Signal": "Container Ship", "AppearSec": 348, "Bearing":  168, "RateDegSec":  0.36},
+        {"Signal": "Torpedo"       , "AppearSec": 367, "Bearing":  182, "RateDegSec": -0.22},
+        {"Signal": "Torpedo"       , "AppearSec": 387, "Bearing":   23, "RateDegSec": -0.29},
+        {"Signal": "Container Ship", "AppearSec": 406, "Bearing":  121, "RateDegSec": -0.46},
+        {"Signal": "Torpedo"       , "AppearSec": 425, "Bearing":   58, "RateDegSec":  0.25},
+        {"Signal": "Container Ship", "AppearSec": 445, "Bearing":  173, "RateDegSec": -0.22},
+        {"Signal": "Torpedo"       , "AppearSec": 464, "Bearing":  224, "RateDegSec":  0.24},
+        {"Signal": "Container Ship", "AppearSec": 483, "Bearing":  205, "RateDegSec": -0.17},
+        {"Signal": "Container Ship", "AppearSec": 502, "Bearing":   94, "RateDegSec": -0.40},
+        {"Signal": "Torpedo"       , "AppearSec": 522, "Bearing":  339, "RateDegSec":  0.16},
+        {"Signal": "Container Ship", "AppearSec": 541, "Bearing":  217, "RateDegSec":  0.24},
+        {"Signal": "Torpedo"       , "AppearSec": 560, "Bearing":    6, "RateDegSec":  0.46},
+        {"Signal": "Torpedo"       , "AppearSec": 580, "Bearing":  265, "RateDegSec":  0.32},
+        {"Signal": "Container Ship", "AppearSec": 599, "Bearing":  195, "RateDegSec": -0.45},
+        {"Signal": "Torpedo"       , "AppearSec": 618, "Bearing":   30, "RateDegSec":  0.13},
+        {"Signal": "Container Ship", "AppearSec": 638, "Bearing":  100, "RateDegSec": -0.24},
+        {"Signal": "Torpedo"       , "AppearSec": 657, "Bearing":  312, "RateDegSec": -0.22},
+        {"Signal": "Container Ship", "AppearSec": 676, "Bearing":  200, "RateDegSec": -0.27},
+        {"Signal": "Container Ship", "AppearSec": 695, "Bearing":  132, "RateDegSec":  0.16},
+        {"Signal": "Container Ship", "AppearSec": 715, "Bearing":  258, "RateDegSec": -0.47},
+        {"Signal": "Torpedo"       , "AppearSec": 734, "Bearing":  334, "RateDegSec": -0.29},
+        {"Signal": "Torpedo"       , "AppearSec": 753, "Bearing":  247, "RateDegSec": -0.07},
+        {"Signal": "Container Ship", "AppearSec": 773, "Bearing":  308, "RateDegSec":  0.15},
+        {"Signal": "Torpedo"       , "AppearSec": 792, "Bearing":  117, "RateDegSec":  0.37},
+        {"Signal": "Torpedo"       , "AppearSec": 811, "Bearing":  186, "RateDegSec":  0.31},
+        {"Signal": "Container Ship", "AppearSec": 830, "Bearing":  329, "RateDegSec": -0.13},
+        {"Signal": "Container Ship", "AppearSec": 850, "Bearing":  162, "RateDegSec": -0.20},
+        {"Signal": "Container Ship", "AppearSec": 869, "Bearing":   30, "RateDegSec": -0.02},
+        {"Signal": "Torpedo"       , "AppearSec": 888, "Bearing":  174, "RateDegSec":  0.31},
+        {"Signal": "Container Ship", "AppearSec": 908, "Bearing":  288, "RateDegSec":  0.12},
+        {"Signal": "Torpedo"       , "AppearSec": 927, "Bearing":   64, "RateDegSec":  0.26},
+        {"Signal": "Container Ship", "AppearSec": 946, "Bearing":  335, "RateDegSec": -0.03},
+        {"Signal": "Torpedo"       , "AppearSec": 965, "Bearing":   44, "RateDegSec": -0.32},
+        {"Signal": "Container Ship", "AppearSec": 985, "Bearing":  132, "RateDegSec": -0.16},
+        {"Signal": "Container Ship", "AppearSec": 1004, "Bearing":   82, "RateDegSec":  0.11},
+        {"Signal": "Torpedo"       , "AppearSec": 1023, "Bearing":   46, "RateDegSec":  0.45},
+        {"Signal": "Torpedo"       , "AppearSec": 1043, "Bearing":  277, "RateDegSec":  0.04},
+        {"Signal": "Torpedo"       , "AppearSec": 1062, "Bearing":  350, "RateDegSec": -0.27},
+        {"Signal": "Container Ship", "AppearSec": 1081, "Bearing":  301, "RateDegSec": -0.29},
+        {"Signal": "Torpedo"       , "AppearSec": 1100, "Bearing":  151, "RateDegSec":  0.02},
+        {"Signal": "Torpedo"       , "AppearSec": 1120, "Bearing":  295, "RateDegSec": -0.38},
+        {"Signal": "Container Ship", "AppearSec": 1139, "Bearing":  226, "RateDegSec":  0.40}
+      ]
+    },
+    "Orientation2": {
+      "TrainingAreaEnabled": "Yes",
+      "SignalDefinitions": [
+        {"Name": "Container Ship", "Classification": "Container Ship", "TrainingAllowed": "Yes",	"SignalStrength": {"Width": 1.5, "Alpha": 0.5}},
+        {"Name": "Sub Diesel",     "Classification": "Sub Diesel",     "TrainingAllowed": "Yes",	"SignalStrength": {"Width": 1.5, "Alpha": 0.5}}
+      ],
+      "Signals": [
+        {"Signal": "Sub Diesel"    , "AppearSec":   1, "Bearing":  291, "RateDegSec": -0.09},
+        {"Signal": "Container Ship", "AppearSec":  19, "Bearing":  108, "RateDegSec":  0.21},
+        {"Signal": "Sub Diesel"    , "AppearSec":  39, "Bearing":  164, "RateDegSec": -0.41},
+        {"Signal": "Container Ship", "AppearSec":  59, "Bearing":  320, "RateDegSec":  0.41}
+      ]
+    },
+    "Practice2": {
+      "SignalDefinitions": [
+        {"Name": "Container Ship", "Classification": "Container Ship"},
+        {"Name": "Sub Diesel",     "Classification": "Sub Diesel"}
+      ],
+      "Signals": [
+        {"Signal": "Sub Diesel"    , "AppearSec":   1, "Bearing":  208, "RateDegSec": -0.28},
+        {"Signal": "Container Ship", "AppearSec":  17, "Bearing":   84, "RateDegSec":  0.23},
+        {"Signal": "Container Ship", "AppearSec":  33, "Bearing":  240, "RateDegSec":  0.39},
+        {"Signal": "Sub Diesel"    , "AppearSec":  49, "Bearing":   20, "RateDegSec": -0.30},
+        {"Signal": "Container Ship", "AppearSec":  65, "Bearing":   62, "RateDegSec":  0.29},
+        {"Signal": "Sub Diesel"    , "AppearSec":  82, "Bearing":   41, "RateDegSec": -0.40},
+        {"Signal": "Sub Diesel"    , "AppearSec":  98, "Bearing":  185, "RateDegSec": -0.04},
+        {"Signal": "Container Ship", "AppearSec": 114, "Bearing":  271, "RateDegSec":  0.35},
+        {"Signal": "Sub Diesel"    , "AppearSec": 130, "Bearing":  314, "RateDegSec":  0.22},
+        {"Signal": "Container Ship", "AppearSec": 146, "Bearing":  135, "RateDegSec": -0.09},
+        {"Signal": "Container Ship", "AppearSec": 162, "Bearing":  102, "RateDegSec": -0.02},
+        {"Signal": "Sub Diesel"    , "AppearSec": 179, "Bearing":  302, "RateDegSec":  0.44}
+      ]
+    },
+    "Test2": {
+      "SignalDefinitions": [
+        {"Name": "Container Ship", "Classification": "Container Ship"},
+        {"Name": "Sub Diesel",     "Classification": "Sub Diesel"}
+      ],
+      "Signals": [
+        {"Signal": "Container Ship", "AppearSec":   1, "Bearing":   23, "RateDegSec": -0.31},
+        {"Signal": "Container Ship", "AppearSec":  20, "Bearing":  334, "RateDegSec": -0.35},
+        {"Signal": "Sub Diesel"    , "AppearSec":  40, "Bearing":  258, "RateDegSec": -0.10},
+        {"Signal": "Sub Diesel"    , "AppearSec":  59, "Bearing":  168, "RateDegSec": -0.24},
+        {"Signal": "Container Ship", "AppearSec":  78, "Bearing":  219, "RateDegSec":  0.47},
+        {"Signal": "Sub Diesel"    , "AppearSec":  97, "Bearing":  242, "RateDegSec":  0.32},
+        {"Signal": "Container Ship", "AppearSec": 117, "Bearing":  100, "RateDegSec":  0.17},
+        {"Signal": "Container Ship", "AppearSec": 136, "Bearing":   14, "RateDegSec":  0.12},
+        {"Signal": "Sub Diesel"    , "AppearSec": 155, "Bearing":  162, "RateDegSec": -0.33},
+        {"Signal": "Sub Diesel"    , "AppearSec": 175, "Bearing":  339, "RateDegSec": -0.17},
+        {"Signal": "Sub Diesel"    , "AppearSec": 194, "Bearing":   57, "RateDegSec": -0.04},
+        {"Signal": "Container Ship", "AppearSec": 213, "Bearing":   89, "RateDegSec": -0.20},
+        {"Signal": "Container Ship", "AppearSec": 232, "Bearing":  265, "RateDegSec": -0.20},
+        {"Signal": "Sub Diesel"    , "AppearSec": 252, "Bearing":  183, "RateDegSec": -0.27},
+        {"Signal": "Sub Diesel"    , "AppearSec": 271, "Bearing":   30, "RateDegSec": -0.29},
+        {"Signal": "Container Ship", "AppearSec": 290, "Bearing":   70, "RateDegSec":  0.35},
+        {"Signal": "Container Ship", "AppearSec": 310, "Bearing":  147, "RateDegSec": -0.12},
+        {"Signal": "Sub Diesel"    , "AppearSec": 329, "Bearing":  324, "RateDegSec": -0.38},
+        {"Signal": "Container Ship", "AppearSec": 348, "Bearing":  113, "RateDegSec":  0.45},
+        {"Signal": "Sub Diesel"    , "AppearSec": 367, "Bearing":  301, "RateDegSec": -0.37},
+        {"Signal": "Sub Diesel"    , "AppearSec": 387, "Bearing":  195, "RateDegSec": -0.37},
+        {"Signal": "Container Ship", "AppearSec": 406, "Bearing":  205, "RateDegSec": -0.35},
+        {"Signal": "Sub Diesel"    , "AppearSec": 425, "Bearing":  211, "RateDegSec": -0.10},
+        {"Signal": "Container Ship", "AppearSec": 445, "Bearing":  175, "RateDegSec":  0.06},
+        {"Signal": "Sub Diesel"    , "AppearSec": 464, "Bearing":  136, "RateDegSec": -0.49},
+        {"Signal": "Container Ship", "AppearSec": 483, "Bearing":  247, "RateDegSec":  0.14},
+        {"Signal": "Container Ship", "AppearSec": 502, "Bearing":  293, "RateDegSec": -0.16},
+        {"Signal": "Sub Diesel"    , "AppearSec": 522, "Bearing":   94, "RateDegSec": -0.13},
+        {"Signal": "Container Ship", "AppearSec": 541, "Bearing":   52, "RateDegSec":  0.35},
+        {"Signal": "Sub Diesel"    , "AppearSec": 560, "Bearing":    9, "RateDegSec":  0.28},
+        {"Signal": "Sub Diesel"    , "AppearSec": 580, "Bearing":  224, "RateDegSec": -0.19},
+        {"Signal": "Container Ship", "AppearSec": 599, "Bearing":  350, "RateDegSec":  0.26},
+        {"Signal": "Sub Diesel"    , "AppearSec": 618, "Bearing":  186, "RateDegSec": -0.10},
+        {"Signal": "Container Ship", "AppearSec": 638, "Bearing":  352, "RateDegSec":  0.05},
+        {"Signal": "Sub Diesel"    , "AppearSec": 657, "Bearing":  173, "RateDegSec":  0.18},
+        {"Signal": "Container Ship", "AppearSec": 676, "Bearing":  198, "RateDegSec":  0.16},
+        {"Signal": "Container Ship", "AppearSec": 695, "Bearing":   30, "RateDegSec": -0.40},
+        {"Signal": "Container Ship", "AppearSec": 715, "Bearing":   54, "RateDegSec":  0.25},
+        {"Signal": "Sub Diesel"    , "AppearSec": 734, "Bearing":  132, "RateDegSec":  0.44},
+        {"Signal": "Sub Diesel"    , "AppearSec": 753, "Bearing":  132, "RateDegSec":  0.21},
+        {"Signal": "Container Ship", "AppearSec": 773, "Bearing":  314, "RateDegSec":  0.37},
+        {"Signal": "Sub Diesel"    , "AppearSec": 792, "Bearing":  115, "RateDegSec": -0.08},
+        {"Signal": "Sub Diesel"    , "AppearSec": 811, "Bearing":  281, "RateDegSec": -0.01},
+        {"Signal": "Container Ship", "AppearSec": 830, "Bearing":  295, "RateDegSec": -0.43},
+        {"Signal": "Container Ship", "AppearSec": 850, "Bearing":  329, "RateDegSec": -0.14},
+        {"Signal": "Container Ship", "AppearSec": 869, "Bearing":   44, "RateDegSec": -0.40},
+        {"Signal": "Sub Diesel"    , "AppearSec": 888, "Bearing":  310, "RateDegSec": -0.46},
+        {"Signal": "Container Ship", "AppearSec": 908, "Bearing":  290, "RateDegSec": -0.50},
+        {"Signal": "Sub Diesel"    , "AppearSec": 927, "Bearing":  156, "RateDegSec": -0.37},
+        {"Signal": "Container Ship", "AppearSec": 946, "Bearing":   64, "RateDegSec": -0.23},
+        {"Signal": "Sub Diesel"    , "AppearSec": 965, "Bearing":  335, "RateDegSec": -0.39},
+        {"Signal": "Container Ship", "AppearSec": 985, "Bearing":  233, "RateDegSec":  0.50},
+        {"Signal": "Container Ship", "AppearSec": 1004, "Bearing":   80, "RateDegSec": -0.17},
+        {"Signal": "Sub Diesel"    , "AppearSec": 1023, "Bearing":   47, "RateDegSec":  0.31},
+        {"Signal": "Sub Diesel"    , "AppearSec": 1043, "Bearing":  276, "RateDegSec":  0.04},
+        {"Signal": "Sub Diesel"    , "AppearSec": 1062, "Bearing":  151, "RateDegSec": -0.17},
+        {"Signal": "Container Ship", "AppearSec": 1081, "Bearing":  121, "RateDegSec":  0.28},
+        {"Signal": "Sub Diesel"    , "AppearSec": 1100, "Bearing":  182, "RateDegSec":  0.47},
+        {"Signal": "Sub Diesel"    , "AppearSec": 1120, "Bearing":  135, "RateDegSec": -0.02},
+        {"Signal": "Container Ship", "AppearSec": 1139, "Bearing":  228, "RateDegSec":  0.38}
+      ]
+    }
+  }
+}

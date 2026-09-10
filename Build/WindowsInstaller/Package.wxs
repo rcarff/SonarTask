@@ -1,0 +1,73 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Package
+      Id="IHMC.SonarTask"
+      Name="Sonar Task"
+      Manufacturer="IHMC"
+      Version="0.1.0"
+      Scope="perMachine">
+
+    <!-- Application icon -->
+    <Icon
+        Id="SonarTask.ico"
+        SourceFile="SonarTask.ico" />
+
+    <!-- Icon shown in Windows Installed Apps -->
+    <Property
+        Id="ARPPRODUCTICON"
+        Value="SonarTask.ico" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="CompanyFolder" Name="IHMC">
+        <Directory Id="INSTALLFOLDER" Name="SonarTask">
+          <!--
+              Main executable is explicitly authored because
+              we want to attach a Start Menu shortcut to it.
+          -->
+          <File
+              Id="SonarTaskExe"
+              Source="!(bindpath.UnityBuild)\SonarTask.exe">
+
+              <Shortcut
+                  Id="SonarTaskStartMenuShortcut"
+                  Directory="ProgramMenuFolder"
+                  Name="Sonar Task"
+                  Description="Sonar Task"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Advertise="yes"
+                  Icon="SonarTask.ico" />
+
+              <Shortcut
+                  Id="SonarTaskDesktopShortcut"
+                  Directory="DesktopFolder"
+                  Name="Sonar Task"
+                  Description="Sonar Task"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Advertise="yes"
+                  Icon="SonarTask.ico" />
+          </File>
+
+          <!--
+              Include everything else from the Unity build.
+          -->
+          <Files
+              Include="!(bindpath.UnityBuild)\**"
+              Directory="INSTALLFOLDER">
+
+            <!-- Main EXE was already explicitly included above -->
+            <Exclude Files="!(bindpath.UnityBuild)\SonarTask.exe" />
+
+            <!-- Don't ship Unity debug symbol files -->
+            <Exclude Files="!(bindpath.UnityBuild)\**\*.pdb" />
+
+          </Files>        
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Required destination for our Start Menu shortcut -->
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="DesktopFolder" />
+  </Package>
+
+</Wix>

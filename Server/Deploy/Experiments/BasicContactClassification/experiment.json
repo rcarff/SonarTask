@@ -1,0 +1,230 @@
+{
+  "SchemaVersion": 1,
+  "Name": "Basic Contact Classification",
+  "Version": "1.0",
+  "InstructionsFile": "instructions.md",
+  "ExperimentSettings": {
+    "PhaseOrder": [
+      "Training",
+      "Test"
+    ],
+    "SignalDefinitions": {
+      "Merchant": {
+        "Name": "Merchant Vessel",
+        "AudioFile": "Sounds/merchant.wav",
+        "AudioVolume": 0.6,
+        "Classification": "Merchant",
+        "SignalStrength": {
+          "Width": 18,
+          "Alpha": 0.72
+        },
+        "FreqTuples": [
+          {
+            "Frequency": 120,
+            "Width": 9,
+            "Alpha": 0.85
+          },
+          {
+            "Frequency": 240,
+            "Width": 10,
+            "Alpha": 0.66
+          },
+          {
+            "Frequency": 360,
+            "Width": 12,
+            "Alpha": 0.48
+          }
+        ]
+      },
+      "Fishing": {
+        "Name": "Fishing Vessel",
+        "AudioFile": "Sounds/fishing.wav",
+        "AudioVolume": 0.55,
+        "Classification": "Fishing",
+        "SignalStrength": {
+          "Width": 15,
+          "Alpha": 0.62
+        },
+        "FreqTuples": [
+          {
+            "Frequency": 175,
+            "Width": 8,
+            "Alpha": 0.82
+          },
+          {
+            "Frequency": 350,
+            "Width": 11,
+            "Alpha": 0.56
+          },
+          {
+            "Frequency": 525,
+            "Width": 14,
+            "Alpha": 0.39
+          }
+        ]
+      },
+      "Tanker": {
+        "Name": "Tanker",
+        "AudioFile": "Sounds/tanker.wav",
+        "AudioVolume": 0.6,
+        "Classification": "Merchant",
+        "SignalStrength": {
+          "Width": 23,
+          "Alpha": 0.74
+        },
+        "FreqTuples": [
+          {
+            "Frequency": 78,
+            "Width": 7,
+            "Alpha": 0.88
+          },
+          {
+            "Frequency": 156,
+            "Width": 9,
+            "Alpha": 0.67
+          },
+          {
+            "Frequency": 312,
+            "Width": 13,
+            "Alpha": 0.45
+          }
+        ]
+      }
+    },
+    "AutoStart": "No",
+    "BackgroundAudio": "Sounds/ocean.wav",
+    "BackgroundAudioVolume": 0.25,
+    "TrainingAreaEnabled": "Yes",
+    "FeedbackEnabled": "Yes",
+    "ClassificationTallyEnabled": "Yes",
+    "AlertsEnabled": "Yes",
+    "BTHOverlapAudio": "No",
+    "SignalAudioEnabled": "Yes",
+    "HideLofarSignalsIfNoSelectedBTH": "No",
+    "JitterFactor": 0.48,
+    "BackgroundNoise": 0.16,
+    "BTHView": {
+      "DegStart": 270,
+      "DegEnd": 90,
+      "DegTicksEvery": 30,
+      "DegLabelsEvery": 30,
+      "TimeStart": 0,
+      "TimeEnd": 30,
+      "TimeTicksEvery": 10,
+      "TimeLabelsEvery": 10,
+      "SelectionWidth": 15
+    },
+    "LOFARViews": [
+      {
+        "HzStart": 0,
+        "HzEnd": 700,
+        "HzTicksEvery": 50,
+        "HzLabelsEvery": 100,
+        "TimeStart": 0,
+        "TimeEnd": 30,
+        "TimeTicksEvery": 10,
+        "TimeLabelsEvery": 10
+      }
+    ],
+    "SignalDurationSec": 28,
+    "AlertOffsetSec": 4,
+    "AlertDurationSec": 8,
+    "RandomizationSeed": 41073491,
+    "ShowElapsedTime": "Yes",
+    "ShowRemainingTime": "Yes",
+    "WaterfallScanRateHz": 20,
+    "WaterfallPalette": "Green",
+    "ShowResultsAtEnd": "Yes"
+  },
+  "Phases": {
+    "Training": {
+      "AutoStart": "No",
+      "TrainingAreaEnabled": "Yes",
+      "FeedbackEnabled": "Yes",
+      "ClassificationTallyEnabled": "Yes",
+      "AlertsEnabled": "Yes",
+      "SignalDefinitions": [
+        {
+          "Name": "Merchant",
+          "TrainingAllowed": "Yes"
+        },
+        {
+          "Name": "Fishing",
+          "TrainingAllowed": "Yes"
+        },
+        {
+          "Name": "Tanker",
+          "TrainingAllowed": "Yes"
+        }
+      ],
+      "Signals": [
+        {
+          "Signal": "Merchant",
+          "ID": "TR-MER-01",
+          "AppearSec": 2,
+          "Bearing": 305,
+          "RateDegSec": 0.18,
+          "DurationSec": 26,
+          "AlertEnabled": "Yes",
+          "AlertText": "Possible Merchant"
+        },
+        {
+          "Signal": "Fishing",
+          "ID": "TR-FIS-01",
+          "AppearSec": 12,
+          "Bearing": 22,
+          "RateDegSec": -0.12,
+          "DurationSec": 24,
+          "AlertEnabled": "Yes"
+        }
+      ]
+    },
+    "Test": {
+      "AutoStart": "No",
+      "TrainingAreaEnabled": "No",
+      "FeedbackEnabled": "No",
+      "ClassificationTallyEnabled": "No",
+      "AlertsEnabled": "Yes",
+      "SignalDefinitions": [
+        {
+          "Name": "Merchant"
+        },
+        {
+          "Name": "Fishing"
+        },
+        {
+          "Name": "Tanker"
+        }
+      ],
+      "Signals": [
+        {
+          "Signal": "Tanker",
+          "ID": "TE-TAN-01",
+          "AppearSec": 4,
+          "Bearing": 320,
+          "RateDegSec": 0.1,
+          "DurationSec": 32,
+          "AlertEnabled": "Yes",
+          "AlertOffsetSec": 7
+        },
+        {
+          "Signal": "Fishing",
+          "ID": "TE-FIS-01",
+          "AppearSec": 16,
+          "Bearing": 48,
+          "RateDegSec": -0.2,
+          "DurationSec": 27
+        }
+      ],
+      "Alerts": [
+        {
+          "Text": "Possible machinery transient",
+          "AppearSec": 10,
+          "Bearing": 14,
+          "DurationSec": 6,
+          "Type": "INVALID"
+        }
+      ]
+    }
+  }
+}
