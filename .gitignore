@@ -12,3 +12,12 @@ Server/Deploy/Results/*
 Server/Deploy/Config/*
 !Server/Deploy/Results/.gitkeep
 !Server/Deploy/Config/.gitkeep
+Results/*
+build/*
+!build/BuildRelease.ps1
+!build/metadata.json
+!build/WindowsInstaller
+build/WindowsInstaller/*
+!build/WindowsInstaller/SonarTaskInstaller.wixproj
+!build/WindowsInstaller/Package.wxs
+!build/WindowsInstaller/SonarTask.ico
