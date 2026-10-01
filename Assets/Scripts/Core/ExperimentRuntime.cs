@@ -34,8 +34,10 @@ public sealed class ExperimentRuntime {
     public event Action<ResolvedSignal> SignalEnded;
     public event Action<ResolvedAlert> AlertShown;
 
-    readonly HashSet<string> started = new();
-    readonly HashSet<string> ended = new();
+    // A signal ID identifies the source/contact and may intentionally repeat.
+    // Track scheduler state by resolved signal occurrence instead of by ID.
+    readonly HashSet<ResolvedSignal> started = new();
+    readonly HashSet<ResolvedSignal> ended = new();
     readonly HashSet<string> alerted = new();
 
     public ExperimentRuntime(ResolvedExperiment experiment) => Experiment = experiment;
@@ -82,12 +84,12 @@ public sealed class ExperimentRuntime {
 
     void ProcessEvents() {
         foreach (var s in Phase.Signals) {
-            if (!started.Contains(s.ID) && PhaseElapsedSec >= s.AppearSec) {
-                started.Add(s.ID);
+            if (!started.Contains(s) && PhaseElapsedSec >= s.AppearSec) {
+                started.Add(s);
                 SignalStarted?.Invoke(s);
             }
-            if (started.Contains(s.ID) && !ended.Contains(s.ID) && PhaseElapsedSec >= s.AppearSec + s.DurationSec) {
-                ended.Add(s.ID);
+            if (started.Contains(s) && !ended.Contains(s) && PhaseElapsedSec >= s.AppearSec + s.DurationSec) {
+                ended.Add(s);
                 SignalEnded?.Invoke(s);
             }
         }

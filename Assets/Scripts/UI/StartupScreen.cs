@@ -58,7 +58,7 @@ namespace SonarTask.UI
                 m.Selection();
             });
 
-            settings.gameObject.SetActive(AppState.IsWeb && !AppState.IsLocalWebDevelopment);
+            settings.gameObject.SetActive(AppState.IsWeb);
             settings.onClick.RemoveAllListeners();
             settings.onClick.AddListener(() => m.Settings());
 

@@ -178,7 +178,6 @@ public static class ExperimentValidator {
             ValidateFreqs(kv.Value.FreqTuples, $"SignalDefinition '{kv.Key}'", errors);
         }
 
-        var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (string phaseName in defaults.PhaseOrder) {
             if (!d.Phases.TryGetValue(phaseName, out var phase) || phase == null) { errors.Add($"Missing phase '{phaseName}'."); continue; }
             phase.SignalDefinitions ??= new List<SignalOverride>();
@@ -221,7 +220,6 @@ public static class ExperimentValidator {
                 float duration = s.DurationSec ?? phaseDefaultDuration;
                 if (duration <= 0) errors.Add($"Signal '{s.Signal}' in phase '{phaseName}' duration must be > 0.");
                 phaseEnd = Math.Max(phaseEnd, s.AppearSec + Math.Max(0, duration));
-                if (!string.IsNullOrWhiteSpace(s.ID) && !ids.Add(s.ID)) errors.Add($"Duplicate Signal ID '{s.ID}'.");
                 if (s.AudioVolume.HasValue && (s.AudioVolume < 0 || s.AudioVolume > 1)) errors.Add($"Signal '{s.Signal}' AudioVolume must be 0..1.");
                 ValidateStrength(s.SignalStrength, $"Signal '{s.Signal}' instance", errors);
                 ValidateFreqs(s.FreqTuples, $"Signal '{s.Signal}' instance", errors, optional:true);

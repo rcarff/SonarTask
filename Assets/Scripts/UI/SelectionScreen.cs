@@ -13,7 +13,7 @@ namespace SonarTask.UI
         Text status;
         ExperimentSummary selected;
         Button instructions, start;
-        readonly Dictionary<string, Button> experimentButtons = new Dictionary<string, Button>();
+        readonly Dictionary<string, Button> experimentButtons = new();
 
         public override void Build(ScreenManager m)
         {
@@ -29,6 +29,7 @@ namespace SonarTask.UI
             start = root.Find("Actions/StartButton").GetComponent<Button>();
 
             back.onClick.RemoveAllListeners(); back.onClick.AddListener(() => m.Startup());
+            if (AppState.IsExternalStudy) back.gameObject.SetActive(false);
             instructions.onClick.RemoveAllListeners(); instructions.onClick.AddListener(OpenInstructions);
             start.onClick.RemoveAllListeners(); start.onClick.AddListener(StartSelected);
             instructions.interactable = start.interactable = false;
@@ -44,10 +45,37 @@ namespace SonarTask.UI
             {
                 var row = UIFactory.GO("Experiment", list); UIFactory.Size((RectTransform)row.transform, 38); var rowLayout = UIFactory.HLayout(row.transform, 5, 0); rowLayout.childForceExpandHeight = false;
                 var b = UIFactory.Button($"{e.Name}  (v{e.Version})", row.transform, () => Select(e)); UIFactory.Size(b, 36, -1, -1, 1);
+                var colors = b.colors;
+                colors.normalColor = Color.white;
+                colors.selectedColor = Color.white;
+                b.colors = colors;
                 experimentButtons[e.PackageName] = b;
                 var completed = UIFactory.Text("", row.transform, 15, TextAnchor.MiddleCenter); UIFactory.Size(completed, 36, 140);
                 StartCoroutine(repo.HasCompleted(AppState.SubjectId, e.PackageName, x => { if (x) { completed.text = "COMPLETED"; completed.color = new Color(.9f,.9f,.9f,1); } }, _ => { }));
                 if (e.PackageName == AppState.SelectedPackage) Select(e);
+            }
+
+            if (AppState.IsExternalStudy)
+            {
+                var assigned = experiments.Find(x => x.PackageName == AppState.SelectedPackage);
+                if (assigned == null)
+                {
+                    status.text = "The assigned external-study experiment is unavailable.";
+                    instructions.interactable = start.interactable = false;
+                    return;
+                }
+                Select(assigned);
+                instructions.gameObject.SetActive(AppState.ExternalShowInstructions);
+                if (AppState.ExternalAutoStart)
+                    LoadSelected(() => { if (AppState.ExternalShowInstructions) Manager.Instructions(); else Manager.Task(); });
+                else
+                {
+                    start.gameObject.SetActive(!AppState.ExternalShowInstructions);
+                    instructions.gameObject.SetActive(AppState.ExternalShowInstructions);
+                    status.text = AppState.ExternalShowInstructions
+                        ? "Assigned external study: " + assigned.Name + ". Open the instructions when ready."
+                        : "Assigned external study: " + assigned.Name + ". Press Start when ready.";
+                }
             }
         }
 
@@ -62,22 +90,25 @@ namespace SonarTask.UI
 
         void RefreshExperimentButtonAppearance()
         {
-            var normalColor = new Color(.20f, .25f, .30f, 1f);
-            var selectedColor = new Color(.10f, .48f, .72f, 1f);
+            Color normalColor = new Color(.20f, .25f, .30f, 1f);
+            Color selectedColor = new Color(.10f, .48f, .72f, 1f);
 
             foreach (var pair in experimentButtons)
             {
                 var button = pair.Value;
                 if (button == null || button.targetGraphic == null) continue;
-
-                bool isSelected = pair.Key == AppState.SelectedPackage;
-                button.targetGraphic.color = isSelected ? selectedColor : normalColor;
+                button.targetGraphic.color = pair.Key == AppState.SelectedPackage ? selectedColor : normalColor;
             }
         }
         void OpenInstructions() { if (selected == null) return; LoadSelected(() => Manager.Instructions()); }
         void StartSelected()
         {
             if (selected == null) return;
+            if (AppState.IsExternalStudy)
+            {
+                LoadSelected(() => Manager.Task());
+                return;
+            }
             LoadSelected(() => StartCoroutine(repo.HasCompleted(AppState.SubjectId, selected.PackageName, done =>
             {
                 if (done) Modal.Show(Manager.Root, "Experiment already completed", "This subject has already completed this experiment. Start another independent run anyway?", () => Manager.Task(), () => { }, "Continue", "Cancel");

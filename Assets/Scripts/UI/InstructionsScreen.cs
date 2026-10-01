@@ -15,7 +15,14 @@ namespace SonarTask.UI
             for (int i = content.childCount - 1; i >= 0; i--) Object.Destroy(content.GetChild(i).gameObject);
             var md = content.GetComponent<MarkdownRenderer>() ?? content.gameObject.AddComponent<MarkdownRenderer>();
             var back = root.Find("BackButton").GetComponent<Button>();
-            back.onClick.RemoveAllListeners(); back.onClick.AddListener(() => m.Selection());
+            back.onClick.RemoveAllListeners();
+            if (AppState.IsExternalStudy)
+            {
+                var label = back.GetComponentInChildren<Text>();
+                if (label) label.text = "Start Experiment";
+                back.onClick.AddListener(() => m.Task());
+            }
+            else back.onClick.AddListener(() => m.Selection());
             var file = AppState.LoadedDefinition?.InstructionsFile ?? "instructions.md";
             StartCoroutine(RepositoryFactory.Experiments.LoadTextAsset(AppState.SelectedPackage, file,
                 text => md.Render(AppState.SelectedPackage, text),

@@ -35,6 +35,24 @@ When signal audio is enabled, selecting exactly one signal plays that signal's a
 
 Clearing the BTH selection returns the LOFAR immediately to the appropriate unselected behavior for the current phase.
 
+
+## Signal IDs and repeated signal occurrences
+
+A signal instance `ID` identifies the **source/contact**, not a unique event row. The same `ID` may be reused by multiple signal instances, including multiple entries in the same phase and entries in different phases. Reusing an ID means those occurrences came from the same object at different times and/or locations.
+
+Each entry in a phase's `Signals` array is still scheduled independently. Repeated IDs therefore produce separate `Signal_Start` and `Signal_End` events for each occurrence. If `ID` is omitted or blank, the resolver assigns an automatic ID to that instance.
+
+Example:
+
+```json
+"Signals": [
+  { "Signal": "Merchant", "ID": "Contact01", "AppearSec": 5,  "Bearing": 45 },
+  { "Signal": "Merchant", "ID": "Contact01", "AppearSec": 30, "Bearing": 70 }
+]
+```
+
+Both entries are valid and represent two signal occurrences from `Contact01`.
+
 ## Determinism
 
 `RandomizationSeed` is a non-zero 64-bit integer. Noise/jitter are keyed by seed, phase, signal, waterfall and scan index rather than consuming Unity's mutable random state. This targets mathematically repeatable signal state; exact cross-GPU pixels are not a requirement.

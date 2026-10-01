@@ -193,7 +193,8 @@
           "exclusiveMinimum": 0
         },
         "ID": {
-          "type": "string"
+          "type": "string",
+          "description": "Source/contact identifier. The same ID may be reused by multiple signal instances, including within the same phase, to represent repeated emissions/appearances from the same object."
         },
         "AudioFile": {
           "type": "string"

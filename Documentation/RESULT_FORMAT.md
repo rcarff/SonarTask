@@ -6,6 +6,8 @@ The current result schema is **version 3**. The fixed CSV columns are:
 
 `Time, TotalElapsedTime, ExpElapsedTime, Phase, PhaseElapsedTimeSec, EventType, Signal_Type, Signal_ID, Signal_Bearing, Signal_Width, Signal_Alpha, BTH_SelectedSignals, BTH_SelectedBearing, Class_Selected, Class_Types, Class_Correct, Class_Confidence, Class_Feedback, Alert_Type, Alert_Text, Alert_Bearing, Alert_SignalId, RunId`
 
+`Signal_ID` is a source/contact identifier, not a unique event identifier. The same authored ID may appear on multiple `Signal_Start`/`Signal_End` rows when the same source/contact produces multiple configured signal occurrences. `RunId` plus event ordering/time identifies the recorded occurrence; do not assume `Signal_ID` is unique within a run or phase.
+
 
 `TotalElapsedTime` is seconds since the experiment was first started and continues increasing during manual and automatic pauses. `ExpElapsedTime` is the pause-sensitive experiment clock; it stops while paused. `PhaseElapsedTimeSec` remains the pause-sensitive elapsed time within the current phase.
 
@@ -18,3 +20,8 @@ Unused fields are empty. UTC timestamps are ISO-8601. Lists inside a cell use se
 Primary event types are `EXP_Started`, `EXP_AutoPaused`, `EXP_Paused`, `EXP_Resumed`, `EXP_Ended`, `Signal_Start`, `Signal_End`, `BTH_Selection`, `Class_Chosen`, `Class_Confirmed`, `Class_Confidence`, and `Alert_Shown`.
 
 A run is considered completed only after natural completion of the final phase. Operator exits, application shutdowns, and browser disconnects are retained as aborted runs.
+
+
+## External-study metadata (fixed31)
+
+Run metadata JSON includes these additional fields for Web recruitment-platform launches: `LaunchMode`, `RecruitmentProvider`, `ProviderParticipantId`, `ProviderStudyId`, `ProviderSessionId`, and `ProviderAssignmentId`. Standard desktop/Web operator runs use `LaunchMode: "Standard"` and leave provider fields empty. For external browser sessions, the server overwrites the subject/experiment/provider metadata from the validated launch-session claims before storing the metadata file.

@@ -25,6 +25,27 @@ namespace SonarTask.UI
             }
             else status.text = string.Empty;
 
+            if (ExternalStudyService.HasExternalLaunchParameters())
+            {
+                status.text = "Validating external study launch…";
+                passwordInput.interactable = false;
+                loginButton.interactable = false;
+                StartCoroutine(ExternalStudyService.Launch(r =>
+                {
+                    if (r != null && r.ok)
+                    {
+                        ExternalStudyService.Apply(r);
+                        m.Selection();
+                        return;
+                    }
+                    AppState.ClearExternalStudy();
+                    passwordInput.interactable = true;
+                    loginButton.interactable = true;
+                    status.text = r?.message ?? "External study launch failed.";
+                }));
+                return;
+            }
+
             loginButton.onClick.RemoveAllListeners();
             loginButton.onClick.AddListener(() =>
             {

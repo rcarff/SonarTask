@@ -45,6 +45,7 @@ mergeInto(LibraryManager.library, {
     var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:mime})); a.download=name; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
   },
   SonarOpenUrl: function(urlPtr) { window.open(UTF8ToString(urlPtr),'_blank'); },
+  SonarNavigateUrl: function(urlPtr) { window.location.assign(UTF8ToString(urlPtr)); },
   SonarPickZip: function(goPtr, methodPtr) {
     var go = UTF8ToString(goPtr), method = UTF8ToString(methodPtr);
     var i = document.createElement('input');

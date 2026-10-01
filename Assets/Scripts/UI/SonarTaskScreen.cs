@@ -173,13 +173,9 @@ public sealed class SonarTaskScreen : SonarScreen {
             var b = UIFactory.Button(c, classGrid, () => ChooseClass(name), 17);
             if (confirm.targetGraphic && b.targetGraphic) b.targetGraphic.color = confirm.targetGraphic.color;
             b.colors = confirm.colors;
-
-            // Classification selection is managed explicitly by selectedClass. Do not let
-            // Unity's EventSystem keep a previously clicked button in its focused/selected state.
             var nav = b.navigation;
             nav.mode = Navigation.Mode.None;
             b.navigation = nav;
-
             classButtons.Add(b);
         }
         trainingClassification = null;
@@ -266,9 +262,8 @@ public sealed class SonarTaskScreen : SonarScreen {
 
             if (b.targetGraphic) b.targetGraphic.color = baseColor;
 
-            // Keep Confirm's hover/pressed/disabled behavior, but do not use Unity's
-            // persistent Selectable focus tint. The explicit baseColor above is the only
-            // selection highlight we want for Classification buttons.
+            // The experiment explicitly owns the selected-classification color. Do not let
+            // Unity's persistent EventSystem Selected state leave a blue tint/ring behind.
             var colors = confirmColors;
             colors.normalColor = Color.white;
             colors.selectedColor = Color.white;
@@ -335,8 +330,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             startPause.interactable = false;
             startPause.GetComponentInChildren<Text>().text = "Ended";
             exit.interactable = false;
-            recorder.Finish(true, "Completed");
-            ShowExperimentEnded();
+            CompleteRunAndShowEnd();
             return;
         }
         if (r == PhaseTransitionReason.Start) {
@@ -748,6 +742,15 @@ public sealed class SonarTaskScreen : SonarScreen {
         SetFeedbackIcon(null);
     }
 
+    void CompleteRunAndShowEnd() {
+        recorder.Finish(true, "Completed", (ok, error) => {
+            if (ok) { ShowExperimentEnded(); return; }
+            Modal.Show(Manager.Root, "Unable to finalize results",
+                "The completed run could not yet be finalized on the server. Results must be saved before the participant is returned to the recruitment service.\n\n" + (error ?? "Unknown server error."),
+                CompleteRunAndShowEnd, null, "Retry");
+        });
+    }
+
     void ShowExperimentEnded() {
         if (endPopupShown) return;
         endPopupShown = true;
@@ -759,11 +762,21 @@ public sealed class SonarTaskScreen : SonarScreen {
                 + $"\nCorrect: {correct} ({Percent(correct, responses):0.0}%)"
                 + $"\nPartial: {partial} ({Percent(partial, responses):0.0}%)"
                 + $"\nIncorrect: {incorrect} ({Percent(incorrect, responses):0.0}%)"
-                + $"\nResponses: {responses}"
-                + $"\nSignals: {signalsStartedTotal}";
+                + $"\nResponses: {responses}";
         }
 
-        Modal.Show(Manager.Root, "Experiment Ended", message, () => Manager.Selection(), null, "OK");
+        System.Action done = () => Manager.Selection();
+        if (AppState.IsExternalStudy)
+        {
+            done = string.IsNullOrWhiteSpace(AppState.ExternalCompletionUrl)
+                ? () => { }
+                : () => WebBrowserBridge.NavigateUrl(AppState.ExternalCompletionUrl);
+            if (string.IsNullOrWhiteSpace(AppState.ExternalCompletionUrl))
+                message += "\n\nYour results have been saved. You may close this browser window.";
+            else
+                message += "\n\nPress OK to return to " + ExternalStudyService.ProviderDisplayName(AppState.ExternalProvider) + ".";
+        }
+        Modal.Show(Manager.Root, "Experiment Ended", message, done, null, "OK");
     }
 
     static float Percent(int value, int total) => total <= 0 ? 0f : value * 100f / total;

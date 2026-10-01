@@ -15,6 +15,7 @@ Reference implementation of a deterministic 2D passive-sonar experiment with GPU
 - BTH circular-bearing selection including 000/360 wrapping.
 - Multiple stacked LOFAR ranges.
 - Training dropdown/carets, classification/confirm/confidence state machine, color + text/shape feedback, tally, alerts, and one `S` marker per submitted classification.
+- Experiment selection and classification use explicit blue selection highlighting; stale EventSystem focus tint is suppressed, and confidence radio visuals reset after each submitted response.
 - Per-phase `BTHOverlapAudio` behavior.
 - Background/signal audio pause/resume behavior.
 - CSV event log + JSON run metadata + exact experiment-definition snapshot.
@@ -184,6 +185,9 @@ PhaseDuration = max(Signal.AppearSec + EffectiveSignalDurationSec)
 ```
 
 with duration inheritance `signal instance → phase default → experiment default`.
+
+
+Signal instance `ID` values identify a source/contact and are intentionally **not required to be unique**. Multiple signal entries may reuse the same ID within one phase or across phases to represent the same object producing signals at different times/locations; each array entry is still scheduled and logged as a separate occurrence.
 
 See `Documentation/EXPERIMENT_AUTHORING.md` and `Documentation/experiment.schema.json`.
 
@@ -550,11 +554,17 @@ Unity **Build and Run** can test the browser/WebGL renderer without deploying Do
 - The password field is pre-filled on the Login screen.
 - The post-build step copies the project's `Experiments/` packages into the temporary Web build and generates a local manifest.
 - Experiment audio, instructions, BTH, LOFAR, training, and classifications run from those bundled local assets.
-- Production Settings are hidden in this mode.
+- The Settings page is available in this mode after re-authenticating with the local test password.
+- Settings > Experiments shows bundled experiments read-only; upload/delete remain server-only.
+- Settings > Results is visible for UI testing; production result browsing/download remains server-only.
+- Settings > External Studies is fully editable in local browser storage for provider-launch testing.
+- Settings > Account is visible, but password changes remain server-only.
 - Result events are kept only in browser memory and are **not** sent to the production API.
 - The mode is disabled automatically when the build is opened through any non-loopback hostname or IP address. Production deployments therefore continue to require server authentication.
 
 Use **SONAR > Build > Web Local Test (Build and Run)** for the simplest path. Unity's normal **File > Build Profiles > Web > Build And Run** also works. This mode is intended for renderer/UI troubleshooting, including WebGL waterfall behavior.
+
+Local WebGL builds also recognize external-study URL parameters on loopback hosts. Local mode permits a development-only `experiment=PACKAGE_NAME` override plus `autostart=0|1` and `instructions=0|1` so launch behavior can be tested without a production API server. Production deployments continue to require server-side study mappings and do not trust the `experiment=` parameter.
 
 ### Markdown instruction layout
 
@@ -569,3 +579,10 @@ The Startup screen now uses labeled `Location`, `Experimenter ID`, and `Subject 
 The Feedback tally shows only Correct, Partial, and Incorrect counts; the end-of-experiment results popup still reports both Responses and Signals when enabled.
 
 Existing projects whose editable Startup scene has already been generated should run **SONAR > Rebuild Editable Scene Layouts** once to create the new labeled field rows. This overwrites edits inside `SceneUIRoot`, so preserve any manual scene changes first.
+
+
+## External participant-study integration (fixed31)
+
+The Web build can now be launched directly from Prolific, CloudResearch Connect, SONA, or a generic URL-based participant platform. Configure mappings under **Settings > External Studies**. A validated external launch sets the SONAR Subject ID from the provider participant ID, restricts the browser session to the assigned experiment, optionally skips directly to instructions/task start, stores provider identifiers in run metadata, and returns the participant to a server-configured completion URL only after the completed run has been finalized. See `Documentation/WEB_EXTERNAL_STUDIES.md`.
+
+Web Settings is now organized into separate **Experiments**, **Results**, **External Studies**, and **Account** views.

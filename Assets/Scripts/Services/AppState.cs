@@ -29,6 +29,24 @@ public static class AppState {
         }
     }
 
+    // Populated only for browser launches from an external participant recruitment system.
+    public static bool IsExternalStudy { get; set; } = false;
+    public static string ExternalProvider { get; set; } = "";
+    public static string ExternalParticipantId { get; set; } = "";
+    public static string ExternalStudyId { get; set; } = "";
+    public static string ExternalSessionId { get; set; } = "";
+    public static string ExternalAssignmentId { get; set; } = "";
+    public static string ExternalCompletionUrl { get; set; } = "";
+    public static bool ExternalAutoStart { get; set; } = false;
+    public static bool ExternalShowInstructions { get; set; } = true;
+
+    public static void ClearExternalStudy() {
+        IsExternalStudy = false;
+        ExternalProvider = ExternalParticipantId = ExternalStudyId = ExternalSessionId = ExternalAssignmentId = ExternalCompletionUrl = "";
+        ExternalAutoStart = false;
+        ExternalShowInstructions = true;
+    }
+
     public static string Version => Application.version;
 }
 

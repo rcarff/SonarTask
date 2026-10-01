@@ -29,6 +29,12 @@ public sealed class RunMetadata {
     public string WaterfallPalette = "";
     public long RandomizationSeed;
     public bool Completed;
+    public string LaunchMode = "Standard";
+    public string RecruitmentProvider = "";
+    public string ProviderParticipantId = "";
+    public string ProviderStudyId = "";
+    public string ProviderSessionId = "";
+    public string ProviderAssignmentId = "";
 }
 
 public sealed class ResultRecorder : MonoBehaviour {
@@ -43,6 +49,7 @@ public sealed class ResultRecorder : MonoBehaviour {
     long sequence;
     bool finished;
     bool finishPending;
+    Action<bool,string> finishCallback;
     Coroutine heartbeat, sender;
     readonly Queue<PendingEvent> pending = new();
     readonly List<ResultEvent> localWebEvents = new();
@@ -66,6 +73,12 @@ public sealed class ResultRecorder : MonoBehaviour {
             RandomizationSeed = definition.ExperimentSettings.RandomizationSeed,
             WaterfallPalette = definition.ExperimentSettings.WaterfallPalette,
             Completed = false,
+            LaunchMode = AppState.IsExternalStudy ? "External" : "Standard",
+            RecruitmentProvider = AppState.ExternalProvider,
+            ProviderParticipantId = AppState.ExternalParticipantId,
+            ProviderStudyId = AppState.ExternalStudyId,
+            ProviderSessionId = AppState.ExternalSessionId,
+            ProviderAssignmentId = AppState.ExternalAssignmentId,
             TerminationReason = "Active"
         };
         if (AppState.IsLocalWebDevelopment) {
@@ -152,8 +165,10 @@ public sealed class ResultRecorder : MonoBehaviour {
         if (finishPending) yield return FinishWeb();
     }
 
-    public void Finish(bool completed, string reason) {
-        if (finished || finishPending || Metadata == null) return;
+    public void Finish(bool completed, string reason, Action<bool,string> done = null) {
+        if (finished) { done?.Invoke(true, null); return; }
+        if (finishPending || Metadata == null) { done?.Invoke(false, "Run finalization is already in progress or the recorder is not initialized."); return; }
+        finishCallback = done;
         Metadata.Completed = completed;
         Metadata.TerminationReason = reason;
         Metadata.EndedUtc = DateTime.UtcNow.ToString("O");
@@ -164,14 +179,16 @@ public sealed class ResultRecorder : MonoBehaviour {
             finished = true;
             finishPending = false;
             Debug.Log($"SONAR local WebGL development run finished: {localWebEvents.Count} result events captured in memory.");
+            finishCallback?.Invoke(true, null); finishCallback = null;
             Destroy(gameObject);
         }
         else if (AppState.IsWeb) {
             if (sender == null) sender = StartCoroutine(SendLoop());
         } else {
             finished = true;
-            try { writer?.Flush(); writer?.Dispose(); WriteMeta(); }
-            catch (Exception e) { Debug.LogError(e); }
+            try { writer?.Flush(); writer?.Dispose(); WriteMeta(); finishCallback?.Invoke(true, null); }
+            catch (Exception e) { Debug.LogError(e); finishCallback?.Invoke(false, e.Message); }
+            finishCallback = null;
             Destroy(gameObject);
         }
     }
@@ -183,10 +200,16 @@ public sealed class ResultRecorder : MonoBehaviour {
         yield return request.SendWebRequest();
         if (request.result == UnityWebRequest.Result.Success) {
             finished = true;
+            finishPending = false;
+            finishCallback?.Invoke(true, null);
+            finishCallback = null;
             Destroy(gameObject);
         } else {
-            Debug.LogWarning("Run finish upload failed; heartbeat timeout will preserve it as aborted: " + request.error);
+            var error = string.IsNullOrWhiteSpace(request.downloadHandler.text) ? request.error : request.downloadHandler.text + " " + request.error;
+            Debug.LogWarning("Run finish upload failed; heartbeat timeout will preserve it as aborted: " + error);
             finishPending = false; // allow an explicit later retry if the object remains alive
+            finishCallback?.Invoke(false, error);
+            finishCallback = null;
         }
     }
 
