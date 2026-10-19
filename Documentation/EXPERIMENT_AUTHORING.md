@@ -36,22 +36,11 @@ When signal audio is enabled, selecting exactly one signal plays that signal's a
 Clearing the BTH selection returns the LOFAR immediately to the appropriate unselected behavior for the current phase.
 
 
-## Signal IDs and repeated signal occurrences
+## Signal IDs and repeated contacts
 
-A signal instance `ID` identifies the **source/contact**, not a unique event row. The same `ID` may be reused by multiple signal instances, including multiple entries in the same phase and entries in different phases. Reusing an ID means those occurrences came from the same object at different times and/or locations.
+`Signal.Id` identifies the physical/contact source represented by the signal; it is **not** a unique event key. The same ID may therefore appear more than once in a phase or in different phases when the same object produces another signal occurrence at a different time, bearing, or other location/state.
 
-Each entry in a phase's `Signals` array is still scheduled independently. Repeated IDs therefore produce separate `Signal_Start` and `Signal_End` events for each occurrence. If `ID` is omitted or blank, the resolver assigns an automatic ID to that instance.
-
-Example:
-
-```json
-"Signals": [
-  { "Signal": "Merchant", "ID": "Contact01", "AppearSec": 5,  "Bearing": 45 },
-  { "Signal": "Merchant", "ID": "Contact01", "AppearSec": 30, "Bearing": 70 }
-]
-```
-
-Both entries are valid and represent two signal occurrences from `Contact01`.
+Each entry in a phase's `Signals` array is still a separate signal occurrence. Every occurrence receives its own start/end scheduling and result events even when another entry has the same ID. Do not invent a new ID merely to make repeated occurrences unique unless they truly represent different contacts.
 
 ## Determinism
 

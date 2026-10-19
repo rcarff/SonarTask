@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SonarTask.Services {
@@ -13,6 +14,25 @@ public static class AppState {
     public static SonarTask.Core.ResolvedExperiment ResolvedExperiment { get; set; }
     public static bool IsWeb => Application.platform == RuntimePlatform.WebGLPlayer;
     public const string LocalWebDevPassword = "SonarDev123!";
+
+    // External-study launch state. These fields are populated from the server-authoritative
+    // assignment returned by /external/launch (or the local WebGL development store).
+    public static bool ExternalStudyActive { get; set; }
+    public static bool ExternalLaunchConsumed { get; set; }
+    public static string ExternalProvider { get; set; } = "";
+    public static string ExternalParticipantId { get; set; } = "";
+    public static string ExternalProviderStudyId { get; set; } = "";
+    public static string ExternalSessionId { get; set; } = "";
+    public static string ExternalAssignmentId { get; set; } = "";
+    public static string ExternalStudyId { get; set; } = "";
+    public static string ExternalAssignmentMode { get; set; } = "";
+    public static string ExternalAssignmentGroup { get; set; } = "";
+    public static List<string> ExternalExperimentSequence { get; set; } = new();
+    public static int ExternalSequenceIndex { get; set; }
+    public static string ExternalCompletionUrl { get; set; } = "";
+    public static bool ExternalAutoStart { get; set; } = true;
+    public static bool ExternalShowInstructions { get; set; } = true;
+    public static bool ExternalTestMode { get; set; }
 
     // Local WebGL development mode exists only for Unity Build-and-Run on a loopback host.
     // Production builds reached through a normal hostname/IP always use the real server API.
@@ -29,25 +49,33 @@ public static class AppState {
         }
     }
 
-    // Populated only for browser launches from an external participant recruitment system.
-    public static bool IsExternalStudy { get; set; } = false;
-    public static string ExternalProvider { get; set; } = "";
-    public static string ExternalParticipantId { get; set; } = "";
-    public static string ExternalStudyId { get; set; } = "";
-    public static string ExternalSessionId { get; set; } = "";
-    public static string ExternalAssignmentId { get; set; } = "";
-    public static string ExternalCompletionUrl { get; set; } = "";
-    public static bool ExternalAutoStart { get; set; } = false;
-    public static bool ExternalShowInstructions { get; set; } = true;
+    public static string Version => Application.version;
 
-    public static void ClearExternalStudy() {
-        IsExternalStudy = false;
-        ExternalProvider = ExternalParticipantId = ExternalStudyId = ExternalSessionId = ExternalAssignmentId = ExternalCompletionUrl = "";
-        ExternalAutoStart = false;
-        ExternalShowInstructions = true;
+    public static void ClearLoadedExperiment() {
+        SelectedPackage = "";
+        LoadedDefinition = null;
+        LoadedDefinitionJson = "";
+        ResolvedExperiment = null;
     }
 
-    public static string Version => Application.version;
+    public static void ResetExternalStudy() {
+        ExternalStudyActive = false;
+        ExternalProvider = "";
+        ExternalParticipantId = "";
+        ExternalProviderStudyId = "";
+        ExternalSessionId = "";
+        ExternalAssignmentId = "";
+        ExternalStudyId = "";
+        ExternalAssignmentMode = "";
+        ExternalAssignmentGroup = "";
+        ExternalExperimentSequence = new List<string>();
+        ExternalSequenceIndex = 0;
+        ExternalCompletionUrl = "";
+        ExternalAutoStart = true;
+        ExternalShowInstructions = true;
+        ExternalTestMode = false;
+        ClearLoadedExperiment();
+    }
 }
 
 public static class LocalHistory {

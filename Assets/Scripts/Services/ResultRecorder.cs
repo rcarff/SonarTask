@@ -29,12 +29,21 @@ public sealed class RunMetadata {
     public string WaterfallPalette = "";
     public long RandomizationSeed;
     public bool Completed;
-    public string LaunchMode = "Standard";
+
+    // External-study metadata. Empty for normal desktop/operator-launched runs.
+    public string LaunchMode = "Normal";
     public string RecruitmentProvider = "";
     public string ProviderParticipantId = "";
     public string ProviderStudyId = "";
     public string ProviderSessionId = "";
     public string ProviderAssignmentId = "";
+    public string ExternalStudyId = "";
+    public string AssignmentMode = "";
+    public string AssignmentGroup = "";
+    public List<string> ExperimentSequence = new();
+    public int SequenceIndex;
+    public int SequenceCount;
+    public bool ExternalTestMode;
 }
 
 public sealed class ResultRecorder : MonoBehaviour {
@@ -49,8 +58,8 @@ public sealed class ResultRecorder : MonoBehaviour {
     long sequence;
     bool finished;
     bool finishPending;
-    Action<bool,string> finishCallback;
     Coroutine heartbeat, sender;
+    Action<bool,string> finishCallback;
     readonly Queue<PendingEvent> pending = new();
     readonly List<ResultEvent> localWebEvents = new();
 
@@ -73,13 +82,20 @@ public sealed class ResultRecorder : MonoBehaviour {
             RandomizationSeed = definition.ExperimentSettings.RandomizationSeed,
             WaterfallPalette = definition.ExperimentSettings.WaterfallPalette,
             Completed = false,
-            LaunchMode = AppState.IsExternalStudy ? "External" : "Standard",
+            TerminationReason = "Active",
+            LaunchMode = AppState.ExternalStudyActive ? "External" : "Normal",
             RecruitmentProvider = AppState.ExternalProvider,
             ProviderParticipantId = AppState.ExternalParticipantId,
-            ProviderStudyId = AppState.ExternalStudyId,
+            ProviderStudyId = AppState.ExternalProviderStudyId,
             ProviderSessionId = AppState.ExternalSessionId,
             ProviderAssignmentId = AppState.ExternalAssignmentId,
-            TerminationReason = "Active"
+            ExternalStudyId = AppState.ExternalStudyId,
+            AssignmentMode = AppState.ExternalAssignmentMode,
+            AssignmentGroup = AppState.ExternalAssignmentGroup,
+            ExperimentSequence = new List<string>(AppState.ExternalExperimentSequence ?? new List<string>()),
+            SequenceIndex = AppState.ExternalStudyActive ? AppState.ExternalSequenceIndex + 1 : 0,
+            SequenceCount = AppState.ExternalStudyActive ? AppState.ExternalExperimentSequence.Count : 0,
+            ExternalTestMode = AppState.ExternalStudyActive && AppState.ExternalTestMode
         };
         if (AppState.IsLocalWebDevelopment) {
             IsReady = true;
@@ -114,7 +130,7 @@ public sealed class ResultRecorder : MonoBehaviour {
         using var request = JsonRequest("/api/results/runs", "POST", body);
         yield return request.SendWebRequest();
         if (request.result != UnityWebRequest.Result.Success) {
-            done(false, request.downloadHandler.text + " " + request.error);
+            done(false, FriendlyWebError(request));
             Destroy(gameObject);
             yield break;
         }
@@ -155,7 +171,7 @@ public sealed class ResultRecorder : MonoBehaviour {
                 yield return request.SendWebRequest();
                 sent = request.result == UnityWebRequest.Result.Success;
                 if (!sent) {
-                    Debug.LogWarning("Result event upload retry: " + request.downloadHandler.text + " " + request.error);
+                    Debug.LogWarning("Result event upload retry: " + FriendlyWebError(request));
                     yield return new WaitForSecondsRealtime(1);
                 }
             }
@@ -166,8 +182,10 @@ public sealed class ResultRecorder : MonoBehaviour {
     }
 
     public void Finish(bool completed, string reason, Action<bool,string> done = null) {
-        if (finished) { done?.Invoke(true, null); return; }
-        if (finishPending || Metadata == null) { done?.Invoke(false, "Run finalization is already in progress or the recorder is not initialized."); return; }
+        if (finished || finishPending || Metadata == null) {
+            done?.Invoke(finished, finished ? null : "Result finalization is already in progress.");
+            return;
+        }
         finishCallback = done;
         Metadata.Completed = completed;
         Metadata.TerminationReason = reason;
@@ -179,15 +197,24 @@ public sealed class ResultRecorder : MonoBehaviour {
             finished = true;
             finishPending = false;
             Debug.Log($"SONAR local WebGL development run finished: {localWebEvents.Count} result events captured in memory.");
-            finishCallback?.Invoke(true, null); finishCallback = null;
+            finishCallback?.Invoke(true, null);
+            finishCallback = null;
             Destroy(gameObject);
         }
         else if (AppState.IsWeb) {
             if (sender == null) sender = StartCoroutine(SendLoop());
         } else {
             finished = true;
-            try { writer?.Flush(); writer?.Dispose(); WriteMeta(); finishCallback?.Invoke(true, null); }
-            catch (Exception e) { Debug.LogError(e); finishCallback?.Invoke(false, e.Message); }
+            try {
+                writer?.Flush(); writer?.Dispose(); WriteMeta();
+                finishPending = false;
+                finishCallback?.Invoke(true, null);
+            }
+            catch (Exception e) {
+                finishPending = false;
+                finishCallback?.Invoke(false, e.Message);
+                Debug.LogError(e);
+            }
             finishCallback = null;
             Destroy(gameObject);
         }
@@ -205,9 +232,9 @@ public sealed class ResultRecorder : MonoBehaviour {
             finishCallback = null;
             Destroy(gameObject);
         } else {
-            var error = string.IsNullOrWhiteSpace(request.downloadHandler.text) ? request.error : request.downloadHandler.text + " " + request.error;
+            var error = FriendlyWebError(request);
             Debug.LogWarning("Run finish upload failed; heartbeat timeout will preserve it as aborted: " + error);
-            finishPending = false; // allow an explicit later retry if the object remains alive
+            finishPending = false;
             finishCallback?.Invoke(false, error);
             finishCallback = null;
         }
@@ -221,6 +248,12 @@ public sealed class ResultRecorder : MonoBehaviour {
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
         return request;
+    }
+
+    static string FriendlyWebError(UnityWebRequest request) {
+        if (request == null) return "Web request failed.";
+        if (!string.IsNullOrWhiteSpace(request.downloadHandler?.text)) return request.downloadHandler.text;
+        return string.IsNullOrWhiteSpace(request.error) ? "Web request failed." : request.error;
     }
 
     public static string ToCsv(ResultEvent e) {

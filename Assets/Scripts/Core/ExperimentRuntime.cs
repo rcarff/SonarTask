@@ -34,10 +34,10 @@ public sealed class ExperimentRuntime {
     public event Action<ResolvedSignal> SignalEnded;
     public event Action<ResolvedAlert> AlertShown;
 
-    // A signal ID identifies the source/contact and may intentionally repeat.
-    // Track scheduler state by resolved signal occurrence instead of by ID.
-    readonly HashSet<ResolvedSignal> started = new();
-    readonly HashSet<ResolvedSignal> ended = new();
+    // Track scheduled signal occurrences by their position in the phase, not by Signal ID.
+    // Signal IDs identify a source/contact and may intentionally repeat for separate occurrences.
+    readonly HashSet<int> started = new();
+    readonly HashSet<int> ended = new();
     readonly HashSet<string> alerted = new();
 
     public ExperimentRuntime(ResolvedExperiment experiment) => Experiment = experiment;
@@ -83,13 +83,14 @@ public sealed class ExperimentRuntime {
     }
 
     void ProcessEvents() {
-        foreach (var s in Phase.Signals) {
-            if (!started.Contains(s) && PhaseElapsedSec >= s.AppearSec) {
-                started.Add(s);
+        for (int signalIndex = 0; signalIndex < Phase.Signals.Count; signalIndex++) {
+            var s = Phase.Signals[signalIndex];
+            if (!started.Contains(signalIndex) && PhaseElapsedSec >= s.AppearSec) {
+                started.Add(signalIndex);
                 SignalStarted?.Invoke(s);
             }
-            if (started.Contains(s) && !ended.Contains(s) && PhaseElapsedSec >= s.AppearSec + s.DurationSec) {
-                ended.Add(s);
+            if (started.Contains(signalIndex) && !ended.Contains(signalIndex) && PhaseElapsedSec >= s.AppearSec + s.DurationSec) {
+                ended.Add(signalIndex);
                 SignalEnded?.Invoke(s);
             }
         }

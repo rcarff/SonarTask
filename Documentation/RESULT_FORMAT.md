@@ -6,8 +6,6 @@ The current result schema is **version 3**. The fixed CSV columns are:
 
 `Time, TotalElapsedTime, ExpElapsedTime, Phase, PhaseElapsedTimeSec, EventType, Signal_Type, Signal_ID, Signal_Bearing, Signal_Width, Signal_Alpha, BTH_SelectedSignals, BTH_SelectedBearing, Class_Selected, Class_Types, Class_Correct, Class_Confidence, Class_Feedback, Alert_Type, Alert_Text, Alert_Bearing, Alert_SignalId, RunId`
 
-`Signal_ID` is a source/contact identifier, not a unique event identifier. The same authored ID may appear on multiple `Signal_Start`/`Signal_End` rows when the same source/contact produces multiple configured signal occurrences. `RunId` plus event ordering/time identifies the recorded occurrence; do not assume `Signal_ID` is unique within a run or phase.
-
 
 `TotalElapsedTime` is seconds since the experiment was first started and continues increasing during manual and automatic pauses. `ExpElapsedTime` is the pause-sensitive experiment clock; it stops while paused. `PhaseElapsedTimeSec` remains the pause-sensitive elapsed time within the current phase.
 
@@ -22,6 +20,17 @@ Primary event types are `EXP_Started`, `EXP_AutoPaused`, `EXP_Paused`, `EXP_Resu
 A run is considered completed only after natural completion of the final phase. Operator exits, application shutdowns, and browser disconnects are retained as aborted runs.
 
 
-## External-study metadata (fixed31)
+## External-study metadata
 
-Run metadata JSON includes these additional fields for Web recruitment-platform launches: `LaunchMode`, `RecruitmentProvider`, `ProviderParticipantId`, `ProviderStudyId`, `ProviderSessionId`, and `ProviderAssignmentId`. Standard desktop/Web operator runs use `LaunchMode: "Standard"` and leave provider fields empty. For external browser sessions, the server overwrites the subject/experiment/provider metadata from the validated launch-session claims before storing the metadata file.
+The fixed CSV event columns remain schema version 3. Recruitment/allocation information is stored in each run's `.meta.json` sidecar so every run can be reconciled with its provider assignment without widening the event CSV.
+
+For an externally launched run the metadata additionally contains `LaunchMode`, `RecruitmentProvider`, `ProviderParticipantId`, `ProviderStudyId`, `ProviderSessionId`, `ProviderAssignmentId`, `ExternalStudyId`, `AssignmentMode`, `AssignmentGroup`, `ExperimentSequence`, `SequenceIndex`, and `SequenceCount`. `SequenceIndex` is one-based in saved metadata. Normal operator/desktop runs leave the external fields empty and use `LaunchMode = "Normal"`.
+
+For a counterbalanced multi-experiment assignment, each experiment produces its normal independent result files. The common `AssignmentGroup` and `ExperimentSequence`, together with `SequenceIndex`, identify the participant's assigned order. The provider completion redirect is offered only after the final sequence step has been saved successfully.
+
+Repeated `Signal_ID` values are valid. Each `Signal_Start`/`Signal_End` row represents one signal occurrence; identical IDs indicate occurrences associated with the same source/contact rather than duplicate records.
+
+
+## External-study test runs (fixed34)
+
+External-study metadata JSON now includes `ExternalTestMode`. It is `true` only for runs launched with a valid server-generated External Study test token (or the local WebGL development test mode). Test runs are stored as normal CSV/meta/experiment snapshots so they can be inspected, but they use separate assignment counters and do not affect production Random/Balanced Random/Counterbalanced allocation. Settings > External Studies > Clear Test Data removes the test assignment records and associated test result-file families.

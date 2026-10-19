@@ -194,9 +194,15 @@ public static class UIFactory {
         colors.normalColor = Color.white;
         colors.highlightedColor = new Color(.75f, .93f, 1f, 1f);
         colors.pressedColor = new Color(.45f, .65f, .75f, 1f);
+        // Confidence selection is represented by the inner dot / RadioToggleFeedback.
+        // Do not let EventSystem focus leave a persistent blue Selected-state ring.
+        colors.selectedColor = Color.white;
         colors.disabledColor = new Color(.45f, .45f, .45f, .65f);
         colors.fadeDuration = .06f;
         t.colors = colors;
+        var nav = t.navigation;
+        nav.mode = Navigation.Mode.None;
+        t.navigation = nav;
         root.AddComponent<RadioToggleFeedback>().Configure(t, (RectTransform)circle.transform, outer);
         return t;
     }

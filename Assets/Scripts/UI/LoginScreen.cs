@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -9,6 +10,8 @@ namespace SonarTask.UI
     {
         InputField passwordInput;
         Button loginButton;
+        Text status;
+        bool externalLaunching;
 
         public override void Build(ScreenManager m)
         {
@@ -16,35 +19,15 @@ namespace SonarTask.UI
             var panel = transform.Find("LoginPanel");
             panel.Find("Title").GetComponent<Text>().text = AppState.ProductName;
             passwordInput = panel.Find("PasswordInput").GetComponent<InputField>();
-            var status = panel.Find("Status").GetComponent<Text>();
+            status = panel.Find("Status").GetComponent<Text>();
             loginButton = panel.Find("LoginButton").GetComponent<Button>();
+
             if (AppState.IsLocalWebDevelopment)
             {
                 passwordInput.text = AppState.LocalWebDevPassword;
-                status.text = "LOCAL WEBGL DEVELOPMENT MODE - bundled experiments; results are not sent to the server.";
+                status.text = "LOCAL WEBGL DEVELOPMENT MODE - bundled experiments; Settings and external-study URLs can be tested locally.";
             }
             else status.text = string.Empty;
-
-            if (ExternalStudyService.HasExternalLaunchParameters())
-            {
-                status.text = "Validating external study launch…";
-                passwordInput.interactable = false;
-                loginButton.interactable = false;
-                StartCoroutine(ExternalStudyService.Launch(r =>
-                {
-                    if (r != null && r.ok)
-                    {
-                        ExternalStudyService.Apply(r);
-                        m.Selection();
-                        return;
-                    }
-                    AppState.ClearExternalStudy();
-                    passwordInput.interactable = true;
-                    loginButton.interactable = true;
-                    status.text = r?.message ?? "External study launch failed.";
-                }));
-                return;
-            }
 
             loginButton.onClick.RemoveAllListeners();
             loginButton.onClick.AddListener(() =>
@@ -58,12 +41,63 @@ namespace SonarTask.UI
                     else status.text = r.message ?? "Login failed.";
                 }));
             });
+
+            if (ExternalStudyService.HasExternalLaunchParameters())
+                StartCoroutine(BeginExternalLaunch());
+        }
+
+        IEnumerator BeginExternalLaunch()
+        {
+            externalLaunching = true;
+            loginButton.interactable = false;
+            passwordInput.interactable = false;
+            status.text = "Validating external-study launch…";
+
+            ExternalLaunchReply reply = null;
+            yield return ExternalStudyService.BeginFromCurrentUrl(x => reply = x);
+
+            if (reply == null || !reply.ok)
+            {
+                externalLaunching = false;
+                loginButton.interactable = true;
+                passwordInput.interactable = true;
+                status.text = "External-study launch failed: " + (reply?.message ?? "No response from server.") + "\nYou can still use the normal operator login below.";
+                yield break;
+            }
+
+            ExternalStudyService.Apply(reply);
+            if (reply.completed)
+            {
+                status.text = "This participant has already completed the assigned external-study sequence.";
+                if (!string.IsNullOrWhiteSpace(reply.completionUrl))
+                {
+                    status.text += " Redirecting to the recruitment provider…";
+                    yield return new WaitForSecondsRealtime(.5f);
+                    WebBrowserBridge.NavigateUrl(reply.completionUrl);
+                }
+                yield break;
+            }
+
+            status.text = $"Assigned {reply.assignmentGroup}: {reply.experimentPackage}";
+            string loadError = null;
+            bool loaded = false;
+            yield return ExternalStudyService.LoadCurrentExperiment(() => loaded = true, e => loadError = e);
+            if (!loaded)
+            {
+                externalLaunching = false;
+                loginButton.interactable = true;
+                passwordInput.interactable = true;
+                status.text = "External-study experiment could not be loaded: " + loadError;
+                yield break;
+            }
+
+            ExternalStudyService.RouteAfterLoad(Manager);
         }
 
         void Update()
         {
             var kb = Keyboard.current;
-            if (kb == null || loginButton == null || passwordInput == null || !loginButton.interactable) return;
+            if (externalLaunching || kb == null || loginButton == null || passwordInput == null || !loginButton.interactable) return;
             if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
                 loginButton.onClick.Invoke();
         }

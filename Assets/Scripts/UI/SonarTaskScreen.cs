@@ -262,8 +262,8 @@ public sealed class SonarTaskScreen : SonarScreen {
 
             if (b.targetGraphic) b.targetGraphic.color = baseColor;
 
-            // The experiment explicitly owns the selected-classification color. Do not let
-            // Unity's persistent EventSystem Selected state leave a blue tint/ring behind.
+            // Selection color is applied directly above. Do not let Unity's EventSystem
+            // leave a persistent Selected-state tint/ring on buttons that were clicked earlier.
             var colors = confirmColors;
             colors.normalColor = Color.white;
             colors.selectedColor = Color.white;
@@ -330,7 +330,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             startPause.interactable = false;
             startPause.GetComponentInChildren<Text>().text = "Ended";
             exit.interactable = false;
-            CompleteRunAndShowEnd();
+            FinishCompletedRun();
             return;
         }
         if (r == PhaseTransitionReason.Start) {
@@ -742,13 +742,81 @@ public sealed class SonarTaskScreen : SonarScreen {
         SetFeedbackIcon(null);
     }
 
-    void CompleteRunAndShowEnd() {
+    void FinishCompletedRun() {
         recorder.Finish(true, "Completed", (ok, error) => {
-            if (ok) { ShowExperimentEnded(); return; }
-            Modal.Show(Manager.Root, "Unable to finalize results",
-                "The completed run could not yet be finalized on the server. Results must be saved before the participant is returned to the recruitment service.\n\n" + (error ?? "Unknown server error."),
-                CompleteRunAndShowEnd, null, "Retry");
+            if (!ok) {
+                Modal.Show(Manager.Root, "Unable to save completed run",
+                    "The result server did not confirm that this run was saved.\n\n" + (error ?? "Unknown error"),
+                    FinishCompletedRun, null, "Retry");
+                return;
+            }
+
+            if (!AppState.ExternalStudyActive) {
+                ShowExperimentEnded();
+                return;
+            }
+
+            if (AppState.IsLocalWebDevelopment) {
+                var local = ExternalStudyService.CompleteLocalCurrentStep();
+                HandleExternalProgress(local);
+            } else {
+                StartCoroutine(ExternalStudyService.RefreshProgress(HandleExternalProgress));
+            }
         });
+    }
+
+    void HandleExternalProgress(ExternalLaunchReply progress) {
+        if (progress == null || !progress.ok) {
+            Modal.Show(Manager.Root, "External study progress error",
+                progress?.message ?? "The next study step could not be determined.",
+                () => StartCoroutine(ExternalStudyService.RefreshProgress(HandleExternalProgress)),
+                null, "Retry");
+            return;
+        }
+
+        ExternalStudyService.Apply(progress);
+        if (progress.completed) {
+            ShowExternalStudyEnded(progress);
+            return;
+        }
+
+        StartCoroutine(ExternalStudyService.LoadCurrentExperiment(
+            () => {
+                endPopupShown = false;
+                ExternalStudyService.RouteAfterLoad(Manager);
+            },
+            error => Modal.Show(Manager.Root, "Unable to load next experiment", error,
+                () => StartCoroutine(ExternalStudyService.LoadCurrentExperiment(
+                    () => ExternalStudyService.RouteAfterLoad(Manager),
+                    e => Modal.Show(Manager.Root, "Unable to load next experiment", e))),
+                null, "Retry")));
+    }
+
+    void ShowExternalStudyEnded(ExternalLaunchReply progress) {
+        if (endPopupShown) return;
+        endPopupShown = true;
+
+        string message = "The assigned study sequence is complete.";
+        if (AppState.ResolvedExperiment.ShowResultsAtEnd == YesNo.Yes) {
+            int responses = correct + partial + incorrect;
+            message += "\n\nResults"
+                + $"\nCorrect: {correct} ({Percent(correct, responses):0.0}%)"
+                + $"\nPartial: {partial} ({Percent(partial, responses):0.0}%)"
+                + $"\nIncorrect: {incorrect} ({Percent(incorrect, responses):0.0}%)"
+                + $"\nResponses: {responses}";
+        }
+        if (!string.IsNullOrWhiteSpace(progress.assignmentGroup))
+            message += "\n\nAssignment: " + progress.assignmentGroup;
+        if (!string.IsNullOrWhiteSpace(progress.completionUrl))
+            message += "\n\nPress Complete Study to return to the recruitment provider.";
+        else
+            message += "\n\nYou may now close this browser tab.";
+
+        Modal.Show(Manager.Root, "Study Complete", message,
+            () => {
+                if (!string.IsNullOrWhiteSpace(progress.completionUrl))
+                    WebBrowserBridge.NavigateUrl(progress.completionUrl);
+            }, null, string.IsNullOrWhiteSpace(progress.completionUrl) ? "OK" : "Complete Study");
     }
 
     void ShowExperimentEnded() {
@@ -762,21 +830,11 @@ public sealed class SonarTaskScreen : SonarScreen {
                 + $"\nCorrect: {correct} ({Percent(correct, responses):0.0}%)"
                 + $"\nPartial: {partial} ({Percent(partial, responses):0.0}%)"
                 + $"\nIncorrect: {incorrect} ({Percent(incorrect, responses):0.0}%)"
-                + $"\nResponses: {responses}";
+                + $"\nResponses: {responses}"
+                + $"\nSignals: {signalsStartedTotal}";
         }
 
-        System.Action done = () => Manager.Selection();
-        if (AppState.IsExternalStudy)
-        {
-            done = string.IsNullOrWhiteSpace(AppState.ExternalCompletionUrl)
-                ? () => { }
-                : () => WebBrowserBridge.NavigateUrl(AppState.ExternalCompletionUrl);
-            if (string.IsNullOrWhiteSpace(AppState.ExternalCompletionUrl))
-                message += "\n\nYour results have been saved. You may close this browser window.";
-            else
-                message += "\n\nPress OK to return to " + ExternalStudyService.ProviderDisplayName(AppState.ExternalProvider) + ".";
-        }
-        Modal.Show(Manager.Root, "Experiment Ended", message, done, null, "OK");
+        Modal.Show(Manager.Root, "Experiment Ended", message, () => Manager.Selection(), null, "OK");
     }
 
     static float Percent(int value, int total) => total <= 0 ? 0f : value * 100f / total;

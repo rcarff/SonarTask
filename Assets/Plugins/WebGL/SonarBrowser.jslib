@@ -45,7 +45,22 @@ mergeInto(LibraryManager.library, {
     var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:mime})); a.download=name; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
   },
   SonarOpenUrl: function(urlPtr) { window.open(UTF8ToString(urlPtr),'_blank'); },
-  SonarNavigateUrl: function(urlPtr) { window.location.assign(UTF8ToString(urlPtr)); },
+  SonarNavigateUrl: function(urlPtr) { window.location.href = UTF8ToString(urlPtr); },
+  SonarCopyText: function(textPtr) {
+    var text = UTF8ToString(textPtr);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function() {});
+        return;
+      }
+    } catch (e) {}
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy'); ta.remove();
+    } catch (e) {}
+  },
   SonarPickZip: function(goPtr, methodPtr) {
     var go = UTF8ToString(goPtr), method = UTF8ToString(methodPtr);
     var i = document.createElement('input');

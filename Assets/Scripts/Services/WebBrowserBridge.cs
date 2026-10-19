@@ -1,10 +1,14 @@
-using System; using System.Runtime.InteropServices; using UnityEngine;
+using System;
+using System.Runtime.InteropServices;
+using UnityEngine;
+
 namespace SonarTask.Services {
 public static class WebBrowserBridge {
 #if UNITY_WEBGL && !UNITY_EDITOR
  [DllImport("__Internal")] static extern void SonarOpenUrl(string url);
  [DllImport("__Internal")] static extern void SonarNavigateUrl(string url);
  [DllImport("__Internal")] static extern void SonarPickZip(string go,string method);
+ [DllImport("__Internal")] static extern void SonarCopyText(string text);
 #endif
  public static void OpenUrl(string url){
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -18,6 +22,13 @@ public static class WebBrowserBridge {
   SonarNavigateUrl(url);
 #else
   Application.OpenURL(url);
+#endif
+ }
+ public static void CopyText(string text){
+#if UNITY_WEBGL && !UNITY_EDITOR
+  SonarCopyText(text ?? "");
+#else
+  GUIUtility.systemCopyBuffer = text ?? "";
 #endif
  }
  public static void PickZip(GameObject receiver,string method){

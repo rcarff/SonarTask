@@ -50,6 +50,7 @@ namespace SonarTask.UI
         }
 
         public Transform Root => canvas ? canvas.transform : transform;
+        public void Login() => SceneManager.LoadScene("LoginWeb");
         public void Startup() => SceneManager.LoadScene("Startup");
         public void Selection() => SceneManager.LoadScene("ExperimentSelection");
         public void Instructions() => SceneManager.LoadScene("Instructions");

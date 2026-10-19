@@ -10,19 +10,29 @@ namespace SonarTask.UI
         {
             base.Build(m);
             var root = transform.Find("Instructions");
-            root.Find("Title").GetComponent<Text>().text = "Instructions — " + (AppState.LoadedDefinition?.Name ?? AppState.SelectedPackage);
+            string title = "Instructions — " + (AppState.LoadedDefinition?.Name ?? AppState.SelectedPackage);
+            if (AppState.ExternalStudyActive && AppState.ExternalExperimentSequence.Count > 1)
+                title += $"    ({AppState.ExternalSequenceIndex + 1} of {AppState.ExternalExperimentSequence.Count})";
+            root.Find("Title").GetComponent<Text>().text = title;
+
             var content = root.Find("Scroll/Viewport/Content");
             for (int i = content.childCount - 1; i >= 0; i--) Object.Destroy(content.GetChild(i).gameObject);
             var md = content.GetComponent<MarkdownRenderer>() ?? content.gameObject.AddComponent<MarkdownRenderer>();
             var back = root.Find("BackButton").GetComponent<Button>();
             back.onClick.RemoveAllListeners();
-            if (AppState.IsExternalStudy)
+            if (AppState.ExternalStudyActive)
             {
-                var label = back.GetComponentInChildren<Text>();
-                if (label) label.text = "Start Experiment";
+                var text = back.GetComponentInChildren<Text>();
+                if (text) text.text = "Start Experiment";
                 back.onClick.AddListener(() => m.Task());
             }
-            else back.onClick.AddListener(() => m.Selection());
+            else
+            {
+                var text = back.GetComponentInChildren<Text>();
+                if (text) text.text = "Back";
+                back.onClick.AddListener(() => m.Selection());
+            }
+
             var file = AppState.LoadedDefinition?.InstructionsFile ?? "instructions.md";
             StartCoroutine(RepositoryFactory.Experiments.LoadTextAsset(AppState.SelectedPackage, file,
                 text => md.Render(AppState.SelectedPackage, text),

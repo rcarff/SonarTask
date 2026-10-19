@@ -23,25 +23,14 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 - Incoming `AutoStart=No` emits automatic pause and waits for Resume.
 - Pause freezes experiment/phase clocks, waterfall history, alerts and audio position.
 
-## Experiment selection and classification workflow
+## Classification workflow
 
-- Selecting an experiment turns only that experiment button blue; selecting another restores the previous button to its normal color.
-- Returning from Instructions preserves the selected experiment highlight.
 - Buttons are disabled without a BTH selection.
 - Confirm is disabled until a classification is chosen.
 - After Confirm, classification/BTH input is locked until confidence is chosen.
-- Classification buttons use blue only for the currently selected classification; previously clicked buttons do not retain a blue focus ring.
 - Confidence produces one response marker, clears selection, and restores the default state.
-- After a confidence value is recorded, its radio circle returns to the same light-gray disabled appearance as the other confidence controls; previously used confidence circles do not remain blue.
 - YES/PARTIAL/NO is correct for single and overlapping contacts.
 - Feedback conveys state with text/shape as well as color.
-
-## Signal IDs and repeated occurrences
-
-- Upload an experiment in which two signal instances in the same phase share one `ID`; validation must accept the package.
-- Run that phase and verify each repeated-ID entry independently emits one `Signal_Start` and one `Signal_End` at its own configured times.
-- Repeat the same `ID` across phases and verify it remains valid.
-- Verify CSV `Signal_ID` retains the authored repeated source/contact ID for each occurrence.
 
 ## Result integrity
 
@@ -66,68 +55,81 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 - Confirm Docker container recreation leaves host Experiments/Results/Config intact.
 
 
-## Fixed31 Web settings navigation
+## fixed30/fixed32 regression checks
 
-1. Log in to the production Web build and open Settings.
-2. Re-authenticate with the operator password.
-3. Verify the Settings home shows separate buttons for Experiments, Results, External Studies, and Account.
-4. Open each view and verify only that view's controls are shown.
-5. Verify Back to Settings returns to the Settings home without another password prompt while the admin token remains valid.
+- Select several Experiment buttons and verify only the currently selected Experiment has the blue selected background.
+- Click several Classification buttons during a run and verify previously selected buttons do not retain Unity's blue focus ring.
+- Complete several Confidence selections and verify the radio circles return to their light-gray idle state after each response.
+- Author two signal occurrences with the same `Id` in one phase. Verify validation accepts the package and both occurrences independently generate `Signal_Start` and `Signal_End` events.
+- Run **Web Local Test (Build and Run)**. Verify Settings is available after local re-authentication and the separate Experiments, Results, External Studies, and Account views open.
+- In Local External Studies, create a mapping and open the generated provider URL. Verify Subject ID and experiment assignment are automatic.
 
-## Fixed31 external study mappings
+## fixed33 external-study assignment tests
 
-1. In Settings > External Studies, add one mapping for each provider used in the deployment.
-2. Verify only installed SONAR experiments can be selected.
-3. Verify duplicate Provider + Study/Project ID mappings are rejected.
-4. Disable a mapping and verify its participant launch is rejected.
-5. Delete a mapping and verify it no longer appears after refresh.
-6. Restart/recreate the API container and verify mappings persist through the Config bind mount.
+### Fixed and persistent assignment
 
-## Fixed31 Prolific launch
+1. Configure one enabled Generic/Prolific mapping in Fixed mode with one group and one experiment.
+2. Launch with participant `P001`; verify Login/Startup are bypassed and the configured experiment is loaded.
+3. Reload/relaunch with the same participant ID; verify the same group is returned.
+4. Change only the participant ID to `P002`; verify a second persistent assignment is created.
+5. Confirm run metadata contains provider IDs, ExternalStudyId, AssignmentMode, AssignmentGroup, ExperimentSequence, SequenceIndex, and SequenceCount.
 
-1. Create an enabled Prolific mapping whose Provider Study ID matches a test `STUDY_ID`.
-2. Open `/?provider=prolific&PROLIFIC_PID=TESTPARTICIPANT000000&STUDY_ID=<mapped-id>&SESSION_ID=TESTSESSION`.
-3. Verify no SONAR operator password is requested.
-4. Verify Subject ID is the supplied `PROLIFIC_PID` and only the mapped experiment is accessible.
-5. Verify Auto Start / Show Instructions behavior matches the mapping.
-6. Complete the task and verify final results are saved before the completion redirect is offered.
-7. Verify `.meta.json` contains the Prolific participant/study/session fields.
+### Random
 
-## Fixed31 Connect launch
+1. Configure at least two groups in Random mode with weights 1/1, then 2/1.
+2. Launch many unique test participant IDs.
+3. Verify every participant receives exactly one persistent group; repeated launch of the same ID does not reroll.
+4. Verify assignment counts are visible in Settings. Do not require exact equal totals because Random is intentionally independent.
 
-1. Create an enabled Connect mapping using the Connect `projectId` as Provider Study / Project ID.
-2. Open `/?provider=connect&participantId=TEST&projectId=<mapped-id>&assignmentId=TEST`.
-3. Verify `participantId` becomes SONAR Subject ID and provider metadata is stored.
-4. Verify the configured Connect completion redirect is used only after successful run finalization.
+### Balanced Random
 
-## Fixed31 SONA launch
+1. Configure two equal-weight groups in Balanced Random mode.
+2. Launch at least 20 unique participant IDs, including several concurrently from separate browser profiles.
+3. Verify assigned totals remain approximately equal and each participant remains in the original group after refresh/relaunch.
+4. Repeat with weights 2/1 and verify allocation tracks approximately the configured ratio.
 
-1. Create an enabled SONA mapping with a researcher-chosen mapping key.
-2. Configure the SONA Study URL as `/?provider=sona&study=<mapping-key>&subject=%SURVEY_CODE%`.
-3. Use SONA's integration test or a substituted test survey code.
-4. Verify the survey code becomes SONAR Subject ID and the assigned experiment launches.
-5. Verify the configured SONA completion URL is used after successful completion.
+### Counterbalanced sequence
 
-## Fixed31 external-session access control
+1. Install `ExperimentA` and `ExperimentB`.
+2. Configure Counterbalanced groups `AB -> ExperimentA, ExperimentB` and `BA -> ExperimentB, ExperimentA` with equal weights.
+3. Launch several unique participants. Verify assignment counts are balanced across AB/BA and each participant starts the first experiment from its assigned sequence.
+4. Naturally complete the first experiment. Verify the first run is saved before the assignment advances and SONAR automatically loads/routes to the second experiment.
+5. Verify there is no provider completion redirect after step 1.
+6. Complete step 2. Verify the assignment is marked Completed and the completion action/redirect appears only now.
+7. Verify the two run metadata files share AssignmentGroup/ExperimentSequence and contain SequenceIndex 1 and 2 respectively.
+8. Interrupt a participant in the middle, then relaunch using the same participant ID. Verify SONAR returns to the current unfinished sequence step rather than reassigning the participant.
 
-1. Start a valid external participant session.
-2. Call `/api/experiments` and verify only the assigned experiment is listed.
-3. Attempt to fetch another package definition or asset and verify access is denied.
-4. Attempt to submit run metadata using a different Subject ID or experiment package and verify access is denied.
-5. Verify `/api/admin/*` operations remain unavailable without the operator Settings re-authentication cookie.
+### Configuration protection/security
+
+1. After at least one assignment exists, attempt to edit provider/study ID, mode, group names/weights, or experiment sequence. Verify the server rejects the allocation-definition change.
+2. Verify Enabled, Auto Start, Show Instructions, and Completion URL can still be changed.
+3. Verify a study with assignments cannot be deleted and can instead be disabled.
+4. As a participant, attempt to request another installed experiment definition/assets directly. Verify the API denies access.
+5. Add `experiment=AnotherPackage` to a production launch URL. Verify server-side assignment still determines the experiment.
+6. Verify an unknown/disabled Provider Study ID produces a readable external-launch error.
+7. In Local WebGL mode only, verify `experiment=`, `autostart=`, and `instructions=` development overrides still work.
 
 
-## Fixed32 local Web Settings and parameter-launch tests
+## Fixed34 external-study test-mode/reset tests
 
-1. Run **SONAR > Build > Web Local Test (Build and Run)** and log in with `SonarDev123!`.
-2. Verify the Startup **Settings** button is visible. Open it and verify Enter submits the local password.
-3. Verify Experiments, Results, External Studies, and Account views are reachable.
-4. Verify Experiments lists bundled packages and upload/delete are disabled.
-5. Verify Results opens and explains production result downloads are server-only.
-6. Verify Account opens and password change is disabled.
-7. In External Studies, add, edit, enable/disable, and delete/re-create a Generic mapping.
-8. Copy/open the generated localhost launch URL and verify Subject ID and assigned experiment are set automatically.
-9. Test `?provider=generic&subject=TEST01&study=LOCAL&experiment=<package>&autostart=1&instructions=1`. Verify instructions appear before start.
-10. Repeat with `instructions=0` and verify direct task start. Repeat with `autostart=0` and verify the restricted experiment-selection path.
-11. Verify a non-existent `experiment=` package gives a readable error.
-12. Verify production/non-loopback builds still rely on server-side mappings and do not trust `experiment=`.
+1. Deploy the fixed34 WebGL build and API server while preserving `/data/config`, `/data/experiments`, and `/data/results`.
+2. In Settings > External Studies, verify each study shows separate Production and Test assigned/completed counts.
+3. Edit a saved Prolific mapping and click **Generate Secure Test URL**. Verify the URL contains `PROLIFIC_PID=SONAR-TEST-...`, the configured `STUDY_ID`, and a `sonar_test_token`.
+4. Open the copied URL in a private/incognito window. Complete enough test launches to exercise all groups. Verify only Test counts change and Production counts remain unchanged.
+5. For Balanced Random/Counterbalanced modes, verify test allocation balances against Test counts only and does not affect the next production group choice.
+6. Complete a test run and verify its `.meta.json` contains `ExternalTestMode: true`.
+7. Click **Clear Test Data** and confirm. Verify Test counts return to zero, production counts are unchanged, and the corresponding test CSV/meta/experiment snapshot files are removed.
+8. Verify an arbitrary deployed URL containing only `sonar_test=1` is not treated as test mode. A deployed server requires a valid generated `sonar_test_token`.
+9. Verify expired/invalid test tokens return a readable authorization error.
+10. Before any real recruitment, exercise **Reset Production Data** on a disposable study. Verify the double confirmation and that production assignment counts return to zero. With full reset, verify associated production result files are removed.
+11. In Web Local Test, verify `sonar_test=1` uses separate browser-local Test counts and **Clear Test Data** clears only those test assignments.
+
+
+## Fixed35 External Study save-before-test regression tests
+
+1. Open an existing External Study, uncheck **Enabled**, save, reopen it, check **Enabled**, and click **Save + Generate Secure Test URL** without clicking the separate Save button. Open the generated URL and verify the study starts.
+2. Repeat in **Web Local Test** and verify the local test starts and the External Studies list shows the mapping as Enabled after returning to Settings.
+3. Create a new External Study and click **Save + Generate Secure Test URL** as the first persistence action. Verify the study is saved and the generated URL launches successfully.
+4. Change the Provider Study / Project ID in the editor and immediately use **Save + Generate Secure Test URL**. Verify the generated URL contains the new ID and launches against that new saved ID.
+5. Deliberately disable a saved mapping and launch its normal participant URL. Verify the error explicitly says the matching External Study is disabled.
+6. Use an unknown Provider Study / Project ID and verify the error explicitly says no matching mapping exists.
