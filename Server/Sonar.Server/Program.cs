@@ -964,7 +964,10 @@ static class ExperimentFiles
             };
         }
         catch { return null; }
-    }).Where(x => x != null).Select(x => x!).ToArray();
+    }).Where(x => x != null).Select(x => x!)
+      .OrderBy(x => x.name ?? x.packageName, StringComparer.OrdinalIgnoreCase)
+      .ThenBy(x => x.packageName, StringComparer.OrdinalIgnoreCase)
+      .ToArray();
 
     public static List<string> ValidatePackage(JsonElement root, string packageDir)
     {

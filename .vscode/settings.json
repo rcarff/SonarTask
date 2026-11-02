@@ -1,1 +1,1 @@
-{"files.exclude":{"Library/":true,"Temp/":true,"Logs/":true,"obj/":true}}
+{"files.exclude":{"Library/":true,"Temp/":true,"Logs/":true,"obj/":true},"dotnet.defaultSolution":"SonarTaskUnity.slnx"}

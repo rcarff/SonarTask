@@ -47,6 +47,10 @@ namespace SonarTask.UI
             experimentButtons.Clear();
             if (AppState.ExternalStudyActive)
                 experiments = experiments.Where(x => string.Equals(x.PackageName, AppState.SelectedPackage, StringComparison.OrdinalIgnoreCase)).ToList();
+            experiments = experiments
+                .OrderBy(x => x.Name ?? x.PackageName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.PackageName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             status.text = experiments.Count == 0
                 ? (AppState.ExternalStudyActive ? "The assigned experiment is not available." : "No experiment packages found.")

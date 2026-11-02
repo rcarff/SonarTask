@@ -83,6 +83,14 @@
       "Signals": [
         {"Signal": "Submarine", "ID": "OA-SUB-01",  "AppearSec": 2, "Bearing": 86, "RateDegSec": 0.08, "DurationSec": 38, "AlertEnabled": "Yes"},
         {"Signal": "Warship", "ID": "OA-WAR-01", "AppearSec": 8, "Bearing": 94, "RateDegSec": -0.04, "DurationSec": 34, "AlertEnabled": "Yes"},
+        {"Signal": "Warship", "ID": "OA-WAR-01", "AppearSec": 12, "Bearing": 194, "RateDegSec": 0.5, "DurationSec": 34,         
+          "SignalStrength": { "Width": 8, "Alpha": 0.34 },
+          "FreqTuples": [
+          {"Frequency": 102, "Width": 16, "Alpha": 0.45},
+          {"Frequency": 284, "Width": 17, "Alpha": 0.3},
+          {"Frequency": 790, "Width": 22, "Alpha": 0.23},
+          {"Frequency": 1700, "Width": 30, "Alpha": 0.12}
+        ]},
         {"Signal": "Biologic", "ID": "OA-BIO-01", "AppearSec": 18, "Bearing": 210, "RateDegSec": 0.3, "DurationSec": 22}
       ],
       "Alerts": [
