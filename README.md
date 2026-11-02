@@ -1,4 +1,4 @@
-# SONAR Simulator Task — Unity 6000.3.11f1
+# SONAR Simulator Task — Unity 6000.3.27f2
 
 Reference implementation of a deterministic 2D passive-sonar experiment with GPU-backed BTH (bearing/time history) and LOFAR (frequency/time) waterfall displays. The same Unity project targets Windows, macOS, and desktop Web builds. The Web build is served with Docker Compose and uses an ASP.NET Core API for authentication, experiment-package management, and durable result storage.
 
@@ -6,7 +6,7 @@ Reference implementation of a deterministic 2D passive-sonar experiment with GPU
 
 ## Included
 
-- Unity project pinned to **6000.3.11f1**.
+- Unity project pinned to **6000.3.27f2**.
 - Runtime scenes: Boot, Web Login, Startup, Experiment Selection, Instructions, Web Settings, and Sonar Task. Scene assets/build settings are generated automatically by the editor initialization script on first import.
 - Responsive uGUI application interface; target logical resolution 1600×900, resizable without page scrolling.
 - Shared `WaterfallDisplay` renderer used by BTH and every LOFAR view.
@@ -29,7 +29,7 @@ Reference implementation of a deterministic 2D passive-sonar experiment with GPU
 ## Repository layout
 
 ```text
-SonarTaskUnity/
+SonarTask/
 ├─ Assets/
 │  ├─ Editor/                 Unity setup/build menu scripts
 │  ├─ Plugins/WebGL/          Browser file/download bridge
@@ -61,8 +61,8 @@ SonarTaskUnity/
 
 # 1. Open the Unity project
 
-1. Install **Unity Hub** and Unity Editor **6000.3.11f1**, including the Windows, macOS and/or Web build support modules you need.
-2. Add/open this directory (`SonarTaskUnity`) as the Unity project.
+1. Install **Unity Hub** and Unity Editor **6000.3.27f2**, including the Windows, macOS and/or Web build support modules you need.
+2. Add/open this directory (`SonarTask`) as the Unity project.
 3. Allow Package Manager/import to finish. The project manifest requests:
    - Visual Studio Editor integration 2.0.25
    - Newtonsoft JSON for Unity 3.2.1
