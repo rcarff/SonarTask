@@ -18,6 +18,12 @@ public static class ExperimentResolver {
             var phase = new ResolvedPhase {
                 Name = phaseName,
                 Index = phaseIndex,
+                DeselectBTHSignalAfterClassification = (source.DeselectBTHSignalAfterClassification ?? defaults.DeselectBTHSignalAfterClassification) == YesNo.Yes,
+                DisablePauseAndExit = (source.DisablePauseAndExit ?? defaults.DisablePauseAndExit) == YesNo.Yes,
+                AutoShowInstructions = (source.AutoShowInstructions ?? defaults.AutoShowInstructions) == YesNo.Yes,
+                InstructionsFile = source.InstructionsFile ?? definition.InstructionsFile ?? "instructions.md",
+                LoFarJitterFactor = source.LoFarJitterFactor ?? defaults.LoFarJitterFactor ?? source.JitterFactor ?? defaults.JitterFactor,
+                LoFarBackgroundNoise = source.LoFarBackgroundNoise ?? defaults.LoFarBackgroundNoise ?? source.BackgroundNoise ?? defaults.BackgroundNoise,
                 AutoStart = source.AutoStart ?? defaults.AutoStart,
                 BackgroundAudio = source.BackgroundAudio ?? defaults.BackgroundAudio,
                 BackgroundAudioVolume = source.BackgroundAudioVolume ?? defaults.BackgroundAudioVolume,
@@ -51,6 +57,8 @@ public static class ExperimentResolver {
                 if (ov.TrainingAllowed.HasValue) merged.TrainingAllowed = ov.TrainingAllowed.Value;
                 if (ov.AudioFile != null) merged.AudioFile = ov.AudioFile;
                 if (ov.AudioVolume.HasValue) merged.AudioVolume = ov.AudioVolume.Value;
+                if (ov.LoFarJitterFactor.HasValue) merged.LoFarJitterFactor = ov.LoFarJitterFactor;
+                if (ov.LoFarBackgroundNoise.HasValue) merged.LoFarBackgroundNoise = ov.LoFarBackgroundNoise;
                 if (ov.Classification != null) merged.Classification = ov.Classification;
                 if (ov.SignalStrength != null) merged.SignalStrength = Clone(ov.SignalStrength);
                 if (ov.FreqTuples != null) merged.FreqTuples = ov.FreqTuples.Select(Clone).ToList();
@@ -81,6 +89,8 @@ public static class ExperimentResolver {
                     DurationSec = instance.DurationSec ?? phase.SignalDurationSec,
                     AudioFile = instance.AudioFile ?? sd.AudioFile,
                     AudioVolume = instance.AudioVolume ?? sd.AudioVolume,
+                    LoFarJitterFactor = instance.LoFarJitterFactor ?? sd.LoFarJitterFactor,
+                    LoFarBackgroundNoise = instance.LoFarBackgroundNoise ?? sd.LoFarBackgroundNoise,
                     Classification = instance.Classification ?? sd.Classification,
                     SignalStrength = Clone(instance.SignalStrength ?? sd.SignalStrength),
                     FreqTuples = (instance.FreqTuples ?? sd.FreqTuples).Select(Clone).ToList(),
@@ -145,6 +155,7 @@ public static class ExperimentResolver {
     static SignalStrength Clone(SignalStrength x) => new() { Width=x.Width, Alpha=x.Alpha };
     static FreqTuple Clone(FreqTuple x) => new() { Frequency=x.Frequency, Width=x.Width, Alpha=x.Alpha };
     static SignalDefinition Clone(SignalDefinition x) => new() {
+        LoFarJitterFactor=x.LoFarJitterFactor, LoFarBackgroundNoise=x.LoFarBackgroundNoise,
         Name=x.Name, TrainingAllowed=x.TrainingAllowed, AudioFile=x.AudioFile, AudioVolume=x.AudioVolume,
         Classification=x.Classification, SignalStrength=Clone(x.SignalStrength ?? new SignalStrength()),
         FreqTuples=(x.FreqTuples ?? new List<FreqTuple>()).Select(Clone).ToList()
@@ -159,6 +170,7 @@ public static class ExperimentValidator {
         if (string.IsNullOrWhiteSpace(d.Name)) errors.Add("Name is required.");
         if (d.ExperimentSettings == null) { errors.Add("ExperimentSettings is required."); return errors; }
         var defaults = d.ExperimentSettings;
+        ValidateLofarNoise(defaults.LoFarJitterFactor, defaults.LoFarBackgroundNoise, "ExperimentSettings", errors);
         defaults.SignalDefinitions ??= new Dictionary<string, SignalDefinition>();
         defaults.PhaseOrder ??= new List<string>();
         if (defaults.RandomizationSeed == 0) errors.Add("RandomizationSeed must be a non-zero integer.");
@@ -174,12 +186,14 @@ public static class ExperimentValidator {
             if (kv.Value == null) { errors.Add($"SignalDefinition '{kv.Key}' is null."); continue; }
             if (string.IsNullOrWhiteSpace(kv.Value.Name)) errors.Add($"SignalDefinition '{kv.Key}' requires Name.");
             if (string.IsNullOrWhiteSpace(kv.Value.Classification)) errors.Add($"SignalDefinition '{kv.Key}' requires Classification.");
+            ValidateLofarNoise(kv.Value.LoFarJitterFactor, kv.Value.LoFarBackgroundNoise, $"SignalDefinition {kv.Key}", errors);
             ValidateStrength(kv.Value.SignalStrength, $"SignalDefinition '{kv.Key}'", errors);
             ValidateFreqs(kv.Value.FreqTuples, $"SignalDefinition '{kv.Key}'", errors);
         }
 
         foreach (string phaseName in defaults.PhaseOrder) {
             if (!d.Phases.TryGetValue(phaseName, out var phase) || phase == null) { errors.Add($"Missing phase '{phaseName}'."); continue; }
+            ValidateLofarNoise(phase.LoFarJitterFactor, phase.LoFarBackgroundNoise, $"Phase {phaseName}", errors);
             phase.SignalDefinitions ??= new List<SignalOverride>();
             phase.Signals ??= new List<SignalInstance>();
             phase.Alerts ??= new List<AlertDefinition>();
@@ -200,6 +214,7 @@ public static class ExperimentValidator {
             var available = new HashSet<string>(defaults.SignalDefinitions.Keys, StringComparer.Ordinal);
             foreach (var ov in phase.SignalDefinitions) {
                 if (ov == null || string.IsNullOrWhiteSpace(ov.Name)) { errors.Add($"Phase '{phaseName}' contains a SignalDefinition without Name."); continue; }
+                ValidateLofarNoise(ov.LoFarJitterFactor, ov.LoFarBackgroundNoise, $"Phase {phaseName} signal {ov.Name}", errors);
                 bool isNew = !available.Contains(ov.Name);
                 if (isNew) {
                     if (!ov.TrainingAllowed.HasValue || ov.AudioFile == null || !ov.AudioVolume.HasValue || string.IsNullOrWhiteSpace(ov.Classification) || ov.SignalStrength == null || ov.FreqTuples == null)
@@ -214,6 +229,7 @@ public static class ExperimentValidator {
             float phaseEnd = 0;
             foreach (var s in phase.Signals) {
                 if (s == null) { errors.Add($"Phase '{phaseName}' contains a null signal."); continue; }
+                ValidateLofarNoise(s.LoFarJitterFactor, s.LoFarBackgroundNoise, $"Signal {s.Signal} instance", errors);
                 if (!available.Contains(s.Signal)) errors.Add($"Phase '{phaseName}' references undefined signal '{s.Signal}'.");
                 if (s.AppearSec < 0) errors.Add($"Signal '{s.Signal}' in phase '{phaseName}' has negative AppearSec.");
                 if (s.Bearing < 0 || s.Bearing > 360) errors.Add($"Signal '{s.Signal}' in phase '{phaseName}' bearing must be 0..360.");
@@ -236,6 +252,10 @@ public static class ExperimentValidator {
 
 
 
+    static void ValidateLofarNoise(float? jitter,float? noise,string where,List<string> errors) {
+        if(jitter.HasValue && (float.IsNaN(jitter.Value)||jitter<0||jitter>1))errors.Add(where + " LoFarJitterFactor must be 0..1.");
+        if(noise.HasValue && (float.IsNaN(noise.Value)||noise<0||noise>1))errors.Add(where + " LoFarBackgroundNoise must be 0..1.");
+    }
     static void ValidateWaterfallRows(float timeStart, float timeEnd, float scanRate, string where, List<string> errors) {
         float historySec = Math.Abs(timeEnd - timeStart);
         int rows = (int)Math.Round(historySec * Math.Max(1f, scanRate));

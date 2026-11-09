@@ -133,3 +133,17 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 4. Change the Provider Study / Project ID in the editor and immediately use **Save + Generate Secure Test URL**. Verify the generated URL contains the new ID and launches against that new saved ID.
 5. Deliberately disable a saved mapping and launch its normal participant URL. Verify the error explicitly says the matching External Study is disabled.
 6. Use an unknown Provider Study / Project ID and verify the error explicitly says no matching mapping exists.
+
+## FIXED36 validation
+
+- Validate packages and run Determinism Smoke Test; verify omitted LOFAR overrides preserve existing output.
+- Confirm draws a border around confidence controls; confidence and new/cleared selections remove it. With DeselectBTHSignalAfterClassification No (also false), selection, LOFAR and audio persist; default Yes clears them.
+- Override DisablePauseAndExit per phase: Pause/Exit disappear during a locked running phase; initial Exit, Start, between-phase Resume and final Exit are available.
+- Exercise LOFAR jitter/noise at defaults, phase, signal definition, override and instance levels. BTH must stay unchanged. Check max-of-row noise, empty row fallback, history reconstruction and 0..1 rejection.
+- Open long instructions, scroll by wheel and scrollbar, and close. Check phase-specific file and Instructions_Opened/Closed CSV events. The button is left of Start and disabled while Running.
+- AutoShowInstructions Yes with AutoStart Yes starts only after Close; AutoStart No waits for Start/Resume. Test first and later phases plus external-study launches.
+- Reference a common WAV/MP3 by bare name and Sounds/name, and verify package-local precedence. Reject traversal/nested common names.
+- Unlock Web Settings: password/unlock controls disappear; expired elevation restores them for GET, POST, DELETE and browser uploads.
+- Common Audio Files: upload/list, duplicate 409, 64 MiB rejection, delete unused, block referenced with package list. Upload a package whose audio is common-only; accept it. Package-local shadowing permits deletion of the common file.
+- Remove a result CSV and confirm the result list hides it while SQLite metadata remains. Confirm the 5000 limit applies after missing-file filtering.
+- Build and Run local Web: shared audio plays and lists read only. Build desktop: already initialized data roots receive missing bundled sounds without overwriting existing sounds.

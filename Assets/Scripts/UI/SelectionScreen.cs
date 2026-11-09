@@ -29,15 +29,16 @@ namespace SonarTask.UI
             ClearChildren(list);
             status = root.Find("Status").GetComponent<Text>();
             back = root.Find("Actions/BackButton").GetComponent<Button>();
-            instructions = root.Find("Actions/InstructionsButton").GetComponent<Button>();
+            instructions = root.Find("Actions/InstructionsButton")?.GetComponent<Button>();
+            if(instructions)instructions.gameObject.SetActive(false);
             start = root.Find("Actions/StartButton").GetComponent<Button>();
 
             back.onClick.RemoveAllListeners();
             back.onClick.AddListener(() => m.Startup());
             back.gameObject.SetActive(!AppState.ExternalStudyActive);
-            instructions.onClick.RemoveAllListeners(); instructions.onClick.AddListener(OpenInstructions);
+            if(instructions){instructions.onClick.RemoveAllListeners(); instructions.onClick.AddListener(OpenInstructions);}
             start.onClick.RemoveAllListeners(); start.onClick.AddListener(StartSelected);
-            instructions.interactable = start.interactable = false;
+            start.interactable = false; if(instructions)instructions.interactable=false;
             status.text = "Loading experiments…";
             StartCoroutine(repo.List(Populate, e => status.text = e));
         }
@@ -83,7 +84,7 @@ namespace SonarTask.UI
         {
             selected = e;
             AppState.SelectedPackage = e.PackageName;
-            instructions.interactable = start.interactable = true;
+            start.interactable = true; if(instructions)instructions.interactable=true;
             status.text = $"Selected: {e.Name}";
             RefreshExperimentButtonAppearance();
         }

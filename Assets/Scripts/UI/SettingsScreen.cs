@@ -21,7 +21,8 @@ namespace SonarTask.UI
         Button unlockButton;
 
         InputField filter;
-        Transform experimentList;
+        Transform experimentList, soundList;
+        [Serializable] sealed class SoundRow { public string name, modifiedUtc; public long size; }
         Image uploadProgressFill;
         Text uploadProgressText;
         readonly List<string> selectedResults = new();
@@ -76,7 +77,7 @@ namespace SonarTask.UI
                 unlockButton.interactable = false;
                 StartCoroutine(AuthService.Reauth(passwordInput.text, r => {
                     unlockButton.interactable = true;
-                    if (r.ok) ShowSettingsHome(); else status.text = r.message;
+                    if (r.ok) { passwordInput.gameObject.SetActive(false); unlockButton.gameObject.SetActive(false); ShowSettingsHome(); } else status.text = r.message;
                 }));
             });
             back.onClick.RemoveAllListeners();
@@ -102,6 +103,7 @@ namespace SonarTask.UI
 
             Heading("Settings", "Choose one administration area. Re-authentication is not required again until the elevated Settings cookie expires.");
             HomeButton("Experiments", "Upload, inspect, and remove experiment packages.", ShowExperiments);
+            HomeButton("Common Audio Files", "Upload and remove shared sound files.", ShowCommonAudio);
             HomeButton("Results", "Search and download result files.", ShowResults);
             HomeButton("External Studies", "Configure Prolific, CloudResearch Connect, SONA, random groups, and counterbalanced sequences.", ShowExternalStudies);
             HomeButton("Account", "Change the Web operator password.", ShowAccount);
@@ -148,6 +150,37 @@ namespace SonarTask.UI
             BackToSettings();
         }
 
+        void ShowCommonAudio() {
+            ClearBody();Heading("Settings > Common Audio Files",AppState.IsLocalWebDevelopment?"Bundled shared sounds are read only. Rebuild after changing Sounds/.":"Upload .wav or .mp3 files, up to 64 MiB. Existing names cannot be replaced.");
+            var up=UIFactory.Button(AppState.IsLocalWebDevelopment?"Upload Audio (server only)":"Upload Audio",body,()=>WebBrowserBridge.PickFile(gameObject,nameof(OnSoundUploadEvent),"/api/admin/sounds/upload",".wav,.mp3",64*1024*1024,"sound"));UIFactory.Size(up,44);up.interactable=!AppState.IsLocalWebDevelopment;
+            var progress=UIFactory.Panel("UploadProgress",body);UIFactory.Size(progress,30);uploadProgressFill=UIFactory.Panel("Fill",progress.transform,new Color(.32f,.67f,.78f,1));uploadProgressFill.raycastTarget=false;var pr=uploadProgressFill.rectTransform;pr.anchorMin=Vector2.zero;pr.anchorMax=new Vector2(0,1);pr.offsetMin=pr.offsetMax=Vector2.zero;uploadProgressText=UIFactory.Text("Ready",progress.transform,14,TextAnchor.MiddleCenter);uploadProgressText.raycastTarget=false;
+            var scroll=UIFactory.GO("SoundScroll",body);UIFactory.Size(scroll.transform as RectTransform,280,-1,1);var sr=scroll.AddComponent<ScrollRect>();var vp=UIFactory.Panel("Viewport",scroll.transform);var vr=vp.rectTransform;vr.anchorMin=Vector2.zero;vr.anchorMax=Vector2.one;vr.offsetMin=vr.offsetMax=Vector2.zero;vp.gameObject.AddComponent<Mask>().showMaskGraphic=false;
+            soundList=UIFactory.GO("Sounds",vp.transform).transform;var cr=(RectTransform)soundList;cr.anchorMin=new Vector2(0,1);cr.anchorMax=Vector2.one;cr.pivot=new Vector2(.5f,1);cr.sizeDelta=Vector2.zero;UIFactory.VLayout(soundList,4,0);soundList.gameObject.AddComponent<ContentSizeFitter>().verticalFit=ContentSizeFitter.FitMode.PreferredSize;sr.viewport=vr;sr.content=cr;UIFactory.VerticalScroll(sr);
+            LoadCommonAudio();BackToSettings();
+        }
+
+        void LoadCommonAudio() {
+            var list=soundList;if(!list)return;ClearChildren(list);
+            StartCoroutine(Get<List<SoundRow>>(AppState.IsLocalWebDevelopment?"Sounds/index.json":"/api/admin/sounds",rows=>{
+                if(!list || list!=soundList)return;
+                foreach(var x in rows ?? new List<SoundRow>()){var row=UIFactory.GO("Sound",list);UIFactory.Size(row.transform as RectTransform,40);UIFactory.HLayout(row.transform,5,0);UIFactory.Size(UIFactory.Text(x.name+"  ("+x.size.ToString("N0")+" bytes)",row.transform,15),38,-1,-1,1);var del=UIFactory.Button(AppState.IsLocalWebDevelopment?"Read only":"Delete",row.transform,()=>Modal.Show(Manager.Root,"Delete sound","Delete '"+x.name+"'?",()=>StartCoroutine(DeleteCommonAudio(x.name)),()=>{},"Delete","Cancel"));UIFactory.Size(del,38,100);del.interactable=!AppState.IsLocalWebDevelopment;}
+            },e=>status.text=FriendlyServerMessage(e)));
+        }
+
+        IEnumerator DeleteCommonAudio(string name) {
+            using var r=UnityWebRequest.Delete("/api/admin/sounds/"+UnityWebRequest.EscapeURL(name));r.downloadHandler=new DownloadHandlerBuffer();yield return r.SendWebRequest(); CheckElevation(r);
+            if(r.result==UnityWebRequest.Result.Success)LoadCommonAudio();else Modal.Show(Manager.Root,"Unable to delete sound",FriendlyServerMessage(r.downloadHandler.text));
+        }
+
+        public void OnSoundUploadEvent(string payload) {
+            if(AppState.IsLocalWebDevelopment || string.IsNullOrEmpty(payload))return;
+            var p=payload.Split(new[]{'|'},3);
+            switch(p[0]){case "START":SetUploadProgress(0,"Uploading sound...");break;case "PROGRESS":if(p.Length>1 && int.TryParse(p[1],out var pct))SetUploadProgress(pct/100f,"Uploading... "+pct+"%");break;case "PROCESSING":SetUploadProgress(1,"Installing sound...");break;case "OK":SetUploadProgress(1,"Upload successful");LoadCommonAudio();break;case "ERR":if(p.Length>1 && p[1]=="401")LockSettings();SetUploadProgress(0,"Upload failed");Modal.Show(Manager.Root,"Sound upload failed",p.Length>2?FriendlyServerMessage(p[2]):payload);break;}
+        }
+
+        void LockSettings() { passwordInput.text="";passwordInput.gameObject.SetActive(true);unlockButton.gameObject.SetActive(true);unlockButton.interactable=true;body.gameObject.SetActive(false);status.text="Settings authorization expired. Re-enter the operator password."; }
+        void CheckElevation(UnityWebRequest request) { if(request.responseCode==401)LockSettings(); }
+
         void ShowResults()
         {
             ClearBody();
@@ -173,7 +206,7 @@ namespace SonarTask.UI
                 : "Change the Web operator password.");
             var np = UIFactory.Input("New password (12+ characters)", body, true); UIFactory.Size(np, 44);
             var cp = UIFactory.Button(AppState.IsLocalWebDevelopment ? "Change Password (server only)" : "Change Password", body, () =>
-                StartCoroutine(AuthService.ChangePassword(passwordInput.text, np.text, r => status.text = r.message)));
+                StartCoroutine(AuthService.ChangePassword(passwordInput.text, np.text, r => { if(r.httpStatus==401 || r.ok)LockSettings(); status.text = r.message; })));
             UIFactory.Size(cp, 44);
             if (AppState.IsLocalWebDevelopment) cp.interactable = false;
             BackToSettings();
@@ -445,7 +478,7 @@ namespace SonarTask.UI
         IEnumerator DeleteExternal(string id)
         {
             using var r = new UnityWebRequest("/api/admin/external-studies/" + UnityWebRequest.EscapeURL(id), "DELETE") { downloadHandler = new DownloadHandlerBuffer() };
-            yield return r.SendWebRequest();
+            yield return r.SendWebRequest(); CheckElevation(r);
             if (r.result == UnityWebRequest.Result.Success) ShowExternalStudies();
             else status.text = FriendlyServerMessage(r.downloadHandler.text);
         }
@@ -669,7 +702,7 @@ namespace SonarTask.UI
                 case "OK": SetUploadProgress(1f, "Upload successful"); status.text = "Experiment uploaded successfully."; LoadExperiments(); break;
                 case "ERR":
                     SetUploadProgress(0f, "Upload failed");
-                    var code = parts.Length > 1 ? parts[1] : ""; var msg = parts.Length > 2 ? parts[2] : payload;
+                    var code = parts.Length > 1 ? parts[1] : ""; if(code=="401")LockSettings(); var msg = parts.Length > 2 ? parts[2] : payload;
                     status.text = code == "413"
                         ? "Upload failed (HTTP 413): The experiment ZIP exceeds the 64 MiB experiment upload limit."
                         : "Upload failed" + (string.IsNullOrEmpty(code) || code == "0" ? "" : $" (HTTP {code})") + ": " + FriendlyServerMessage(msg);
@@ -686,7 +719,7 @@ namespace SonarTask.UI
         IEnumerator DeleteExperimentRequest(string package)
         {
             using var r = new UnityWebRequest("/api/admin/experiments/" + UnityWebRequest.EscapeURL(package), "DELETE") { downloadHandler = new DownloadHandlerBuffer() };
-            yield return r.SendWebRequest();
+            yield return r.SendWebRequest(); CheckElevation(r);
             if (r.result == UnityWebRequest.Result.Success) { status.text = "Experiment deleted."; LoadExperiments(); }
             else status.text = FriendlyServerMessage(r.downloadHandler.text);
         }
@@ -706,7 +739,7 @@ namespace SonarTask.UI
         {
             ClearChildren(body);
             body.gameObject.SetActive(true);
-            experimentList = null; filter = null; uploadProgressFill = null; uploadProgressText = null;
+            experimentList = null; soundList = null; filter = null; uploadProgressFill = null; uploadProgressText = null;
             groupEditors.Clear(); editorExperiments.Clear(); groupEditorList = null;
         }
 
@@ -746,7 +779,7 @@ namespace SonarTask.UI
 
         IEnumerator Get<T>(string url, Action<T> ok, Action<string> fail)
         {
-            using var r = UnityWebRequest.Get(url); yield return r.SendWebRequest();
+            using var r = UnityWebRequest.Get(url); yield return r.SendWebRequest(); CheckElevation(r);
             if (r.result != UnityWebRequest.Result.Success) { fail(r.downloadHandler.text); yield break; }
             try { ok(JsonConvert.DeserializeObject<T>(r.downloadHandler.text)); } catch (Exception e) { fail(e.Message); }
         }
@@ -756,7 +789,7 @@ namespace SonarTask.UI
             var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(data));
             using var r = new UnityWebRequest(url, "POST") { uploadHandler = new UploadHandlerRaw(bytes), downloadHandler = new DownloadHandlerBuffer() };
             r.SetRequestHeader("Content-Type", "application/json");
-            yield return r.SendWebRequest();
+            yield return r.SendWebRequest(); CheckElevation(r);
             if (r.result == UnityWebRequest.Result.Success) ok(r.downloadHandler.text); else fail(r.downloadHandler.text);
         }
 

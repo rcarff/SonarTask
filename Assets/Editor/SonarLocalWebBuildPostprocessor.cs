@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using SonarTask.Core;
 using UnityEditor;
@@ -34,6 +35,8 @@ public sealed class SonarLocalWebBuildPostprocessor : IPostprocessBuildWithRepor
 
         CopyDir(src, dst);
         WriteManifest(dst);
+        var sounds=Path.Combine(output,"Sounds");if(Directory.Exists("Sounds"))CopyDir(Path.GetFullPath("Sounds"),sounds);Directory.CreateDirectory(sounds);
+        File.WriteAllText(Path.Combine(sounds,"index.json"),JsonConvert.SerializeObject(Directory.GetFiles(sounds).Where(SonarTask.Services.CommonSounds.IsAudio).Select(f=>new{name=Path.GetFileName(f),size=new FileInfo(f).Length}).OrderBy(x=>x.name),Formatting.Indented));
         Debug.Log("SONAR local WebGL development mode prepared. Login password: " + SonarTask.Services.AppState.LocalWebDevPassword);
     }
 

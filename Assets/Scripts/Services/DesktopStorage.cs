@@ -37,6 +37,7 @@ namespace SonarTask.Services
         }
 
         public static string ExperimentsPath => Path.Combine(DataRoot, "Experiments");
+        public static string SoundsPath => Path.Combine(DataRoot, "Sounds");
         public static string ResultsPath => Path.Combine(DataRoot, "Results");
         public static string LogsPath => Path.Combine(DataRoot, "Logs");
         public static string InitializationError => initializationError;
@@ -65,6 +66,7 @@ namespace SonarTask.Services
             {
 #if UNITY_EDITOR
                 // Editor Play Mode remains completely isolated from Documents.
+                Directory.CreateDirectory(SoundsPath);
                 Directory.CreateDirectory(ExperimentsPath);
                 Directory.CreateDirectory(ResultsPath);
                 return;
@@ -75,10 +77,12 @@ namespace SonarTask.Services
 
                 var rootExisted = Directory.Exists(DataRoot);
                 Directory.CreateDirectory(DataRoot);
+                Directory.CreateDirectory(SoundsPath);
                 Directory.CreateDirectory(ExperimentsPath);
                 Directory.CreateDirectory(ResultsPath);
                 Directory.CreateDirectory(LogsPath);
 
+                CopyDirectoryIfPresent(Path.Combine(Application.streamingAssetsPath,"SonarTaskSeed","Sounds"),SoundsPath,false);
                 var marker = Path.Combine(DataRoot, MarkerName);
                 if (File.Exists(marker)) return;
 
@@ -114,6 +118,7 @@ namespace SonarTask.Services
             try
             {
                 Directory.CreateDirectory(DataRoot);
+                Directory.CreateDirectory(SoundsPath);
                 Directory.CreateDirectory(ExperimentsPath);
                 Directory.CreateDirectory(ResultsPath);
                 Directory.CreateDirectory(LogsPath);

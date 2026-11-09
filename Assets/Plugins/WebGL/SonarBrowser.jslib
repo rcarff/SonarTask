@@ -61,11 +61,20 @@ mergeInto(LibraryManager.library, {
       document.execCommand('copy'); ta.remove();
     } catch (e) {}
   },
+  SonarPickZip__deps: ['SonarPickFile'],
   SonarPickZip: function(goPtr, methodPtr) {
+    // Allocate the extra arguments for the generalized picker for this call only.
+    var strings = ['/api/admin/experiments/upload', '.zip,application/zip', 'experiment ZIP'];
+    var ptrs = strings.map(function(s) { var p = _malloc(lengthBytesUTF8(s) + 1); stringToUTF8(s, p, lengthBytesUTF8(s) + 1); return p; });
+    try { _SonarPickFile(goPtr, methodPtr, ptrs[0], ptrs[1], 64 * 1024 * 1024, ptrs[2]); }
+    finally { ptrs.forEach(function(p) { _free(p); }); }
+  },
+  SonarPickFile: function(goPtr, methodPtr, urlPtr, acceptPtr, maxBytes, labelPtr) {
     var go = UTF8ToString(goPtr), method = UTF8ToString(methodPtr);
     var i = document.createElement('input');
     i.type = 'file';
-    i.accept = '.zip,application/zip';
+    i.accept = UTF8ToString(acceptPtr);
+    var url = UTF8ToString(urlPtr), label = UTF8ToString(labelPtr);
     i.style.display = 'none';
     document.body.appendChild(i);
 
@@ -77,9 +86,9 @@ mergeInto(LibraryManager.library, {
     i.onchange = function() {
       var f = i.files && i.files[0];
       if (!f) { cleanup(); return; }
-      var maxZipBytes = 64 * 1024 * 1024;
+      var maxZipBytes = maxBytes;
       if (f.size > maxZipBytes) {
-        send('ERR|413|The experiment ZIP exceeds the 64 MiB upload limit.');
+        send('ERR|413|Upload exceeds 64 MiB limit.');
         cleanup();
         return;
       }
@@ -89,7 +98,7 @@ mergeInto(LibraryManager.library, {
         var fd = new FormData();
         fd.append('file', f, f.name);
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/admin/experiments/upload', true);
+        xhr.open('POST', url, true);
         xhr.withCredentials = true;
         xhr.upload.onprogress = function(ev) {
           if (ev.lengthComputable && ev.total > 0) {
@@ -97,15 +106,15 @@ mergeInto(LibraryManager.library, {
             send('PROGRESS|' + pct + '|' + ev.loaded + '|' + ev.total);
           }
         };
-        xhr.upload.onload = function() { send('PROCESSING|Upload complete. Validating and installing experiment...'); };
+        xhr.upload.onload = function() { send('PROCESSING|Upload complete. Installing ' + label + '...'); };
         xhr.onload = function() {
           var body = xhr.responseText || '';
           if (xhr.status >= 200 && xhr.status < 300) send('OK|' + body);
-          else if (xhr.status === 413 && !body) send('ERR|413|The experiment ZIP is too large for the server upload limit.');
+          else if (xhr.status === 413 && !body) send('ERR|413|Upload exceeds 64 MiB limit.');
           else send('ERR|' + xhr.status + '|' + body);
           cleanup();
         };
-        xhr.onerror = function() { send('ERR|0|Network error while uploading experiment ZIP.'); cleanup(); };
+        xhr.onerror = function() { send('ERR|0|Network error while uploading file.'); cleanup(); };
         xhr.onabort = function() { send('ERR|0|Upload cancelled.'); cleanup(); };
         xhr.send(fd);
       } catch (e) {

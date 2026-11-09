@@ -105,7 +105,6 @@ namespace SonarTask.UI
             var status=UIFactory.Text("",main,14,TextAnchor.MiddleCenter); status.gameObject.name="Status"; UIFactory.Size(status,30);
             var row=UIFactory.GO("Actions",main);UIFactory.Size((RectTransform)row.transform,38);var hl=UIFactory.HLayout(row.transform,8,0);hl.childAlignment=TextAnchor.MiddleCenter;hl.childForceExpandHeight=false;
             var back=UIFactory.Button("Back",row.transform,null);back.gameObject.name="BackButton";UIFactory.Size(back,36,140);
-            var instructions=UIFactory.Button("Instructions",row.transform,null);instructions.gameObject.name="InstructionsButton";UIFactory.Size(instructions,36,160);
             var start=UIFactory.Button("Start",row.transform,null);start.gameObject.name="StartButton";UIFactory.Size(start,36,160);
         }
 
@@ -115,7 +114,7 @@ namespace SonarTask.UI
             var title=UIFactory.Text("Instructions",main,27,TextAnchor.MiddleCenter);title.gameObject.name="Title";UIFactory.Size(title,50);
             var scroll=UIFactory.GO("Scroll",main);UIFactory.Size((RectTransform)scroll.transform,500,-1,1);var sr=scroll.AddComponent<ScrollRect>();
             var vp=UIFactory.Panel("Viewport",scroll.transform,new Color(.035f,.045f,.055f,1));Fill(vp.rectTransform);vp.gameObject.AddComponent<Mask>().showMaskGraphic=false;
-            var content=UIFactory.GO("Content",vp.transform);var cr=(RectTransform)content.transform;cr.anchorMin=new Vector2(0,1);cr.anchorMax=new Vector2(1,1);cr.pivot=new Vector2(.5f,1);cr.sizeDelta=Vector2.zero;var fit=content.AddComponent<ContentSizeFitter>();fit.verticalFit=ContentSizeFitter.FitMode.PreferredSize;sr.viewport=vp.rectTransform;sr.content=cr;sr.horizontal=false;
+            var content=UIFactory.GO("Content",vp.transform);var cr=(RectTransform)content.transform;cr.anchorMin=new Vector2(0,1);cr.anchorMax=new Vector2(1,1);cr.pivot=new Vector2(.5f,1);cr.sizeDelta=Vector2.zero;var fit=content.AddComponent<ContentSizeFitter>();fit.verticalFit=ContentSizeFitter.FitMode.PreferredSize;sr.viewport=vp.rectTransform;sr.content=cr;sr.horizontal=false;UIFactory.VerticalScroll(sr);
             var back=UIFactory.Button("Back",main,null);back.gameObject.name="BackButton";UIFactory.Size(back,48);
         }
 
@@ -133,6 +132,7 @@ namespace SonarTask.UI
         static void BuildSonarTask(RectTransform root)
         {
             var top=UIFactory.Rect("TopBar",root,new Vector2(0,.91f),new Vector2(1,1),Vector2.zero,Vector2.zero);AddBackground(top,new Color(.055f,.065f,.075f,1));var topLayout=UIFactory.HLayout(top,8,8);topLayout.childAlignment=TextAnchor.MiddleCenter;
+            var instructions=UIFactory.Button("Instructions",top,null);instructions.gameObject.name="InstructionsButton";UIFactory.Size(instructions,54,155);
             var sp=UIFactory.Button("Start",top,null);sp.gameObject.name="StartPauseButton";UIFactory.Size(sp,54,155);
             var phase=UIFactory.Text("Phase",top,23,TextAnchor.MiddleCenter);phase.gameObject.name="PhaseText";UIFactory.Size(phase,54,230);
             var timer=UIFactory.GO("ExperimentTimer",top).transform;UIFactory.Size((RectTransform)timer,54,255);var tv=UIFactory.VLayout(timer,0,0);tv.childAlignment=TextAnchor.MiddleRight;
@@ -159,7 +159,7 @@ namespace SonarTask.UI
             var cg=UIFactory.GO("ClassGrid",cls.transform);var grid=cg.AddComponent<GridLayoutGroup>();grid.constraint=GridLayoutGroup.Constraint.FixedColumnCount;grid.constraintCount=3;grid.cellSize=new Vector2(125,38);grid.spacing=new Vector2(5,5);UIFactory.Size((RectTransform)cg.transform,90);
             var confirm=UIFactory.Button("Confirm",cls.transform,null);confirm.gameObject.name="ConfirmButton";UIFactory.Size(confirm,38);
             var cl=UIFactory.Text("Confidence",cls.transform,15,TextAnchor.MiddleCenter);cl.gameObject.name="ConfidenceLabel";UIFactory.Size(cl,24);
-            var cr=UIFactory.GO("ConfidenceRow",cls.transform);UIFactory.Size((RectTransform)cr.transform,44);var chl=UIFactory.HLayout(cr.transform,16,0);chl.childAlignment=TextAnchor.MiddleCenter;chl.childForceExpandHeight=false;chl.childForceExpandWidth=false;
+            var cr=UIFactory.GO("ConfidenceRow",cls.transform);UIFactory.ConfidenceHighlight(cr.transform);UIFactory.Size((RectTransform)cr.transform,44);var chl=UIFactory.HLayout(cr.transform,16,0);chl.childAlignment=TextAnchor.MiddleCenter;chl.childForceExpandHeight=false;chl.childForceExpandWidth=false;
 
             var feedback=UIFactory.Panel("Feedback",rc,new Color(.07f,.08f,.095f,1));UIFactory.Size(feedback,118);UIFactory.VLayout(feedback.transform,4,7);
             var fh=UIFactory.Text("Feedback",feedback.transform,18,TextAnchor.MiddleCenter);fh.gameObject.name="Title";UIFactory.Size(fh,28);

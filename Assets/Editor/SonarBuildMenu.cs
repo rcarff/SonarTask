@@ -12,7 +12,7 @@ public static class SonarBuildMenu {
  [MenuItem("SONAR/Build/macOS")]
  public static void Mac(){SonarProjectSetup.ApplyBranding();SyncDesktopSeedExperiments();Directory.CreateDirectory("Build/macOS");BuildPipeline.BuildPlayer(Scenes(),"Build/macOS/SONAR Simulator Task.app",BuildTarget.StandaloneOSX,BuildOptions.None);}
  [MenuItem("SONAR/Build/Sync Desktop Seed Experiments")]
- public static void SyncDesktopSeedExperiments(){const string dst="Assets/StreamingAssets/SonarTaskSeed/Experiments";CopyDir("Experiments",dst);AssetDatabase.Refresh();Debug.Log("SONAR desktop seed experiments synchronized.");}
+ public static void SyncDesktopSeedExperiments(){const string dst="Assets/StreamingAssets/SonarTaskSeed/Experiments";CopyDir("Experiments",dst);CopyDir("Sounds","Assets/StreamingAssets/SonarTaskSeed/Sounds");AssetDatabase.Refresh();Debug.Log("SONAR desktop seed experiments synchronized.");}
  static void CopyFile(string src,string dst){if(!File.Exists(src))return;var d=Path.GetDirectoryName(dst);if(!string.IsNullOrEmpty(d))Directory.CreateDirectory(d);File.Copy(src,dst,true);}
  static void CopyDir(string src,string dst){if(!Directory.Exists(src))return;if(Directory.Exists(dst))Directory.Delete(dst,true);foreach(var dir in Directory.GetDirectories(src,"*",SearchOption.AllDirectories))Directory.CreateDirectory(dir.Replace(src,dst));Directory.CreateDirectory(dst);foreach(var f in Directory.GetFiles(src,"*",SearchOption.AllDirectories)){var t=f.Replace(src,dst);Directory.CreateDirectory(Path.GetDirectoryName(t));File.Copy(f,t,true);}}
 }

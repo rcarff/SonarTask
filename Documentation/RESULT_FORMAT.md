@@ -34,3 +34,7 @@ Repeated `Signal_ID` values are valid. Each `Signal_Start`/`Signal_End` row repr
 ## External-study test runs (fixed34)
 
 External-study metadata JSON now includes `ExternalTestMode`. It is `true` only for runs launched with a valid server-generated External Study test token (or the local WebGL development test mode). Test runs are stored as normal CSV/meta/experiment snapshots so they can be inspected, but they use separate assignment counters and do not affect production Random/Balanced Random/Counterbalanced allocation. Settings > External Studies > Clear Test Data removes the test assignment records and associated test result-file families.
+
+## Instruction viewing events (FIXED36)
+
+`Instructions_Opened` and `Instructions_Closed` record in-experiment instruction overlay viewing, including automatic phase instruction prompts. They use the current phase and runtime clocks. No CSV columns were added; the header is unchanged. Viewing instructions before the task scene through the external-study Instructions scene does not create these run events.

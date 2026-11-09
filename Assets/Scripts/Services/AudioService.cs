@@ -29,7 +29,14 @@ public sealed class AudioService : MonoBehaviour {
         source.mute = false;
     }
 
-    IEnumerator Load(string url, Action<AudioClip> done) {
+    IEnumerator Load(string package,string path,Action<AudioClip> done) {
+        var repo=RepositoryFactory.Experiments;var urls=new List<string>{repo.AssetUrl(package,path)};
+        try{urls.Add(repo.CommonSoundUrl(CommonSounds.Normalize(path)));}catch(ArgumentException){}
+        foreach(var url in urls){if(!AppState.IsWeb && Uri.TryCreate(url,UriKind.Absolute,out var uri) && uri.IsFile && !System.IO.File.Exists(uri.LocalPath))continue;AudioClip clip=null;yield return LoadUrl(url,c=>clip=c);if(clip){done(clip);yield break;}}
+        done(null);
+    }
+
+    IEnumerator LoadUrl(string url, Action<AudioClip> done) {
         AudioType type = url.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) ? AudioType.MPEG : AudioType.WAV;
         using var request = UnityWebRequestMultimedia.GetAudioClip(url, type);
         yield return request.SendWebRequest();
@@ -42,7 +49,7 @@ public sealed class AudioService : MonoBehaviour {
         backgroundStarted = false;
         backgroundPlayRequested = play;
         if (string.IsNullOrWhiteSpace(path)) return;
-        StartCoroutine(Load(RepositoryFactory.Experiments.AssetUrl(package, path), clip => {
+        StartCoroutine(Load(package, path, clip => {
             if (!clip || !background) return;
             background.clip = clip;
             background.volume = Mathf.Clamp01(volume);
@@ -99,7 +106,7 @@ public sealed class AudioService : MonoBehaviour {
             src.volume = Mathf.Clamp01(sig.AudioVolume);
             var channel = new SignalChannel { Source = src };
             signalSources.Add(channel);
-            StartCoroutine(Load(RepositoryFactory.Experiments.AssetUrl(package, sig.AudioFile), clip => {
+            StartCoroutine(Load(package, sig.AudioFile, clip => {
                 if (!src || !clip) return;
                 src.clip = clip;
                 if (!paused) { src.Play(); channel.Started = true; }

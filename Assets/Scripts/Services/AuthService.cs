@@ -6,7 +6,7 @@ using UnityEngine.Networking;
 
 namespace SonarTask.Services {
 public static class AuthService {
-    [Serializable] public sealed class Reply { public bool ok; public string message; }
+    [Serializable] public sealed class Reply { public bool ok; public string message; public long httpStatus; }
 
     static IEnumerator Post(string path, object body, Action<Reply> done) {
         var data = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body));
@@ -17,7 +17,7 @@ public static class AuthService {
         yield return r.SendWebRequest();
         Reply x = null;
         try { x = JsonConvert.DeserializeObject<Reply>(r.downloadHandler.text); } catch { }
-        done(x ?? new Reply { ok = false, message = string.IsNullOrEmpty(r.error) ? "Request failed" : r.error });
+        x ??= new Reply { ok = false, message = string.IsNullOrEmpty(r.error) ? "Request failed" : r.error }; x.httpStatus=r.responseCode; done(x);
     }
 
     static IEnumerator LocalLogin(string password, Action<Reply> done) {

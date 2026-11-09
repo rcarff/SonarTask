@@ -248,6 +248,23 @@ public static class UIFactory {
         return e;
     }
 
+    public static GameObject ConfidenceHighlight(Transform row) {
+        var existing=row.Find("ConfidenceHighlight");var root=existing ? existing.gameObject : GO("ConfidenceHighlight",row);
+        (root.GetComponent<LayoutElement>() ?? root.AddComponent<LayoutElement>()).ignoreLayout=true;
+        var r=(RectTransform)root.transform;r.anchorMin=Vector2.zero;r.anchorMax=Vector2.one;r.offsetMin=new Vector2(-6,-6);r.offsetMax=new Vector2(6,6);
+        if(!existing)for(int i=0;i<4;i++){var edge=Panel("Border"+i,r,new Color(1f,.72f,.15f,1));edge.raycastTarget=false;var e=edge.rectTransform;bool horizontal=i<2;e.anchorMin=horizontal?new Vector2(0,i):new Vector2(i-2,0);e.anchorMax=horizontal?new Vector2(1,i):new Vector2(i-2,1);e.sizeDelta=horizontal?new Vector2(0,3):new Vector2(3,0);e.anchoredPosition=Vector2.zero;}
+        root.SetActive(false);return root;
+    }
+
+    public static void VerticalScroll(ScrollRect sr) {
+        sr.horizontal=false;sr.vertical=true;sr.scrollSensitivity=25;sr.movementType=ScrollRect.MovementType.Clamped;
+        var bar=sr.verticalScrollbar;
+        if(!bar){var found=sr.transform.Find("VerticalScrollbar");if(found)bar=found.GetComponent<Scrollbar>();}
+        if(!bar){var bg=Panel("VerticalScrollbar",sr.transform,new Color(.12f,.15f,.18f,1));bar=bg.gameObject.AddComponent<Scrollbar>();var r=bg.rectTransform;r.anchorMin=new Vector2(1,0);r.anchorMax=Vector2.one;r.pivot=new Vector2(1,.5f);r.sizeDelta=new Vector2(18,0);r.anchoredPosition=Vector2.zero;
+            var area=Rect("SlidingArea",r,Vector2.zero,Vector2.one,new Vector2(3,3),new Vector2(-3,-3));var handle=Panel("Handle",area,new Color(.55f,.65f,.72f,1));handle.rectTransform.anchorMin=Vector2.zero;handle.rectTransform.anchorMax=Vector2.one;handle.rectTransform.offsetMin=handle.rectTransform.offsetMax=Vector2.zero;bar.handleRect=handle.rectTransform;bar.targetGraphic=handle;bar.direction=Scrollbar.Direction.BottomToTop;}
+        sr.verticalScrollbar=bar;sr.verticalScrollbarVisibility=ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;sr.verticalScrollbarSpacing=4;
+    }
+
     public static void EnsureEventSystem() {
         if (Object.FindFirstObjectByType<EventSystem>()) return;
         var g = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));

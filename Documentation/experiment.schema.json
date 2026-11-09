@@ -40,9 +40,21 @@
   },
   "$defs": {
     "yesNo": {
-      "enum": [
-        "Yes",
-        "No"
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^([Yy][Ee][Ss]|[Nn][Oo]|[Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])$"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ]
+        }
       ]
     },
     "freqTuple": {
@@ -123,6 +135,16 @@
           "items": {
             "$ref": "#/$defs/freqTuple"
           }
+        },
+        "LoFarJitterFactor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "LoFarBackgroundNoise": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       }
     },
@@ -159,6 +181,16 @@
           "items": {
             "$ref": "#/$defs/freqTuple"
           }
+        },
+        "LoFarJitterFactor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "LoFarBackgroundNoise": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       }
     },
@@ -239,6 +271,16 @@
             "VALID",
             "INVALID"
           ]
+        },
+        "LoFarJitterFactor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "LoFarBackgroundNoise": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       }
     },
@@ -449,6 +491,25 @@
             "Grayscale",
             "Cividis"
           ]
+        },
+        "DeselectBTHSignalAfterClassification": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "DisablePauseAndExit": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "AutoShowInstructions": {
+          "$ref": "#/$defs/yesNo"
+        },
+        "LoFarJitterFactor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "LoFarBackgroundNoise": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       }
     },
@@ -574,6 +635,25 @@
             },
             "ShowResultsAtEnd": {
               "$ref": "#/$defs/yesNo"
+            },
+            "DeselectBTHSignalAfterClassification": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "DisablePauseAndExit": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "AutoShowInstructions": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "LoFarJitterFactor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "LoFarBackgroundNoise": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
             }
           }
         }
@@ -692,6 +772,29 @@
                 "Grayscale",
                 "Cividis"
               ]
+            },
+            "DeselectBTHSignalAfterClassification": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "DisablePauseAndExit": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "AutoShowInstructions": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "LoFarJitterFactor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "LoFarBackgroundNoise": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "InstructionsFile": {
+              "type": "string",
+              "description": "Package-relative Markdown file. Inherits experiment InstructionsFile, then instructions.md. Empty hides the instructions button."
             }
           }
         }

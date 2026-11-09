@@ -13,6 +13,7 @@ public interface IExperimentRepository {
     IEnumerator LoadDefinition(string packageName, Action<ExperimentDefinition> ok, Action<string> fail);
     IEnumerator LoadTextAsset(string packageName,string relativePath,Action<string> ok,Action<string> fail);
     string AssetUrl(string packageName,string relativePath);
+    string CommonSoundUrl(string name);
     IEnumerator HasCompleted(string subject,string packageName,Action<bool> ok,Action<string> fail);
 }
 
@@ -30,6 +31,7 @@ public static class RepositoryFactory {
 }
 
 public sealed class DesktopExperimentRepository:IExperimentRepository {
+    public string CommonSoundUrl(string name)=>new Uri(Path.Combine(DesktopStorage.SoundsPath,CommonSounds.Normalize(name))).AbsoluteUri;
     string Root=>Path.Combine(RepositoryFactory.DesktopDataRoot,"Experiments");
     public IEnumerator List(Action<List<ExperimentSummary>> ok,Action<string> fail){
         try{Directory.CreateDirectory(Root);var l=new List<ExperimentSummary>();foreach(var d in Directory.GetDirectories(Root)){var f=Path.Combine(d,"experiment.json");if(!File.Exists(f))continue;try{var x=JsonConvert.DeserializeObject<ExperimentDefinition>(File.ReadAllText(f));l.Add(new ExperimentSummary{PackageName=Path.GetFileName(d),Name=x?.Name??Path.GetFileName(d),Version=x?.Version??""});}catch(Exception e){Debug.LogWarning($"Skipping {d}: {e.Message}");}}l.Sort((a,b)=>string.Compare(a.Name,b.Name,StringComparison.OrdinalIgnoreCase));ok(l);}catch(Exception e){fail(e.Message);}yield break;
@@ -41,6 +43,7 @@ public sealed class DesktopExperimentRepository:IExperimentRepository {
 }
 
 public sealed class LocalWebExperimentRepository:IExperimentRepository {
+    public string CommonSoundUrl(string name)=>"Sounds/"+UnityWebRequest.EscapeURL(CommonSounds.Normalize(name));
     const string Root = "Experiments/";
 
     static string EncodedPath(string value) {
@@ -106,6 +109,7 @@ public sealed class LocalWebExperimentRepository:IExperimentRepository {
 }
 
 public sealed class WebExperimentRepository:IExperimentRepository {
+    public string CommonSoundUrl(string name)=>"/api/sounds/"+UnityWebRequest.EscapeURL(CommonSounds.Normalize(name));
     const string Api="/api";
     IEnumerator Get<T>(string url,Action<T> ok,Action<string> fail){using var r=UnityWebRequest.Get(url);yield return r.SendWebRequest();if(r.result!=UnityWebRequest.Result.Success){fail(r.downloadHandler.text+" "+r.error);yield break;}try{ok(JsonConvert.DeserializeObject<T>(r.downloadHandler.text));}catch(Exception e){fail(e.Message);}}
     public IEnumerator List(Action<List<ExperimentSummary>> ok,Action<string> fail)=>Get(Api+"/experiments",ok,fail);

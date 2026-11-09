@@ -2,7 +2,7 @@
 
 Each experiment lives in its own directory and contains exactly one `experiment.json`. `instructions.md`, `Images/`, and `Sounds/` are conventional but optional except where referenced.
 
-All referenced paths are relative to the package. Parent traversal (`../`), absolute paths, and remote URLs are intentionally unsupported.
+Referenced paths are relative to the package, with a common Sounds fallback for audio files. Parent traversal (`../`), absolute paths, and remote URLs are intentionally unsupported.
 
 ## Phase duration
 
@@ -59,3 +59,24 @@ Each entry in a phase's `Signals` array is still a separate signal occurrence. E
 `WaterfallScanRateHz` changes the temporal resolution of BTH and LOFAR displays; it does not change the configured history duration. The renderer allocates approximately `(TimeEnd - TimeStart) * WaterfallScanRateHz` rows. Definitions requiring more than 4096 rows for any waterfall are rejected.
 
 A signal remains selectable/classifiable while any part of its track is still visible in the BTH history, even after its active signal duration has ended.
+
+
+## Phase controls and instructions
+
+`DeselectBTHSignalAfterClassification` defaults to `Yes`. Set it to `No` to keep the BTH selection, LOFAR history and selected audio after confidence is recorded; the classification controls reset for another response. Confirm draws an amber border around the confidence row until a confidence level is chosen.
+
+`DisablePauseAndExit` defaults to `No`. When `Yes`, Pause is hidden while Running and Exit is hidden throughout the phase after the initial Start. Start and Resume remain available before a phase starts and between phases. Exit appears after the experiment ends.
+
+`AutoShowInstructions` defaults to `No`. When `Yes`, instructions open before the first phase and between phases. Close starts/resumes that phase only if `AutoStart` is `Yes`; otherwise the operator presses Start/Resume. The in-task Instructions button is available before Start, while paused and between phases, and disabled while Running. Each phase may set `InstructionsFile`; it inherits the experiment file, then `instructions.md`. Use an empty file value to hide the button. The separate Instructions scene is retained for external-study launches and uses phase 1's resolved file.
+
+All three switches can be set in ExperimentSettings and overridden per phase. Yes/No fields accept case-insensitive `Yes`, `No`, `True`, `False`, JSON booleans and integer `1`/`0`; serialized output uses `Yes`/`No`.
+
+## Independent LOFAR jitter and noise
+
+`LoFarJitterFactor` and `LoFarBackgroundNoise` are optional numbers from 0 to 1. Each resolves from signal instance → phase signal-definition override → experiment signal definition → phase LOFAR value → ExperimentSettings LOFAR value → resolved phase `JitterFactor` / `BackgroundNoise`. They affect only LOFAR; BTH retains its existing values. A LOFAR row uses the **maximum effective noise** among signals feeding that row; an empty row uses phase LOFAR noise. Live and reconstructed history use the same calculation and deterministic keys. Omitting these fields preserves existing rendering.
+
+## Shared Sounds library
+
+Audio references (`AudioFile` and `BackgroundAudio`) first load the package-relative file. When absent, a flat `name.wav` or `Sounds/name.wav` falls back to the common Sounds library; the `Sounds/` prefix is case-insensitive. Nested paths, `..`, separators and invalid filename characters are rejected for common lookup. Only `.wav` and `.mp3` are shared. Images and instructions remain package-relative.
+
+The common directory is `<project>/Sounds` in Editor/local Web development, `DataRoot/Sounds` in desktop players and `/data/sounds` on the server (`Server/Deploy/Sounds` on the host). Desktop builds seed missing common files even for initialized installs. Local Web builds copy sounds and generate a read-only manifest. Web Settings > Common Audio Files lists names and sizes, uploads files up to 64 MiB, and deletes unused files. Duplicate names return 409. Deletion of a referenced common file returns 409 listing referencing packages; package-local files shadow the common file.

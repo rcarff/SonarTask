@@ -15,6 +15,7 @@ namespace SonarTask.UI
                 title += $"    ({AppState.ExternalSequenceIndex + 1} of {AppState.ExternalExperimentSequence.Count})";
             root.Find("Title").GetComponent<Text>().text = title;
 
+            UIFactory.VerticalScroll(root.Find("Scroll").GetComponent<ScrollRect>());
             var content = root.Find("Scroll/Viewport/Content");
             for (int i = content.childCount - 1; i >= 0; i--) Object.Destroy(content.GetChild(i).gameObject);
             var md = content.GetComponent<MarkdownRenderer>() ?? content.gameObject.AddComponent<MarkdownRenderer>();
@@ -33,7 +34,7 @@ namespace SonarTask.UI
                 back.onClick.AddListener(() => m.Selection());
             }
 
-            var file = AppState.LoadedDefinition?.InstructionsFile ?? "instructions.md";
+            var file = AppState.ResolvedExperiment?.Phases[0].InstructionsFile ?? AppState.LoadedDefinition?.InstructionsFile ?? "instructions.md";
             StartCoroutine(RepositoryFactory.Experiments.LoadTextAsset(AppState.SelectedPackage, file,
                 text => md.Render(AppState.SelectedPackage, text),
                 e => md.Render(AppState.SelectedPackage, "# Unable to load instructions\n\n" + e)));

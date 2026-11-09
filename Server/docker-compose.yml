@@ -8,6 +8,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
     volumes:
       - ./Deploy/Experiments:/data/experiments
+      - ./Deploy/Sounds:/data/sounds
       - ./Deploy/Results:/data/results
       - ./Deploy/Config:/data/config
     networks: [sonar]

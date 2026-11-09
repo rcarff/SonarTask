@@ -15,6 +15,7 @@ public sealed class SonarTaskScreen : SonarScreen {
     ResultRecorder recorder;
     AudioService audioService;
     ResolvedPhase phase;
+    Button instructionsButton; GameObject confidenceHighlight; bool instructionsOpen, recordingReady;
     Button startPause, exit, confirm, clearSelectionButton;
     Text phaseText, elapsedText, remainingText, feedbackText, tallyText, alertText, trainingInfo;
     GameObject feedbackCorrectIcon, feedbackPartialIcon, feedbackIncorrectIcon;
@@ -74,7 +75,9 @@ public sealed class SonarTaskScreen : SonarScreen {
 
         startPause.interactable = false;
         recorder.Begin(AppState.SelectedPackage, AppState.LoadedDefinition, definitionJson, (ok, e) => {
+            recordingReady = ok; RefreshPhaseControls();
             startPause.interactable = ok;
+            if(ok && phase.AutoShowInstructions) ShowInstructions(true);
             if (!ok) Modal.Show(Manager.Root, "Result storage unavailable", e, () => Manager.Selection());
         });
     }
@@ -82,6 +85,9 @@ public sealed class SonarTaskScreen : SonarScreen {
     void BuildShell() {
         var top = transform.Find("TopBar");
         startPause = top.Find("StartPauseButton").GetComponent<Button>();
+        instructionsButton = top.Find("InstructionsButton")?.GetComponent<Button>() ?? UIFactory.Button("Instructions",top,null);
+        instructionsButton.name="InstructionsButton"; UIFactory.Size(instructionsButton,54,155); int startIndex=startPause.transform.GetSiblingIndex();if(instructionsButton.transform.GetSiblingIndex()<startIndex)startIndex--;instructionsButton.transform.SetSiblingIndex(startIndex);
+        instructionsButton.onClick.RemoveAllListeners(); instructionsButton.onClick.AddListener(()=>ShowInstructions(false));
         phaseText = top.Find("PhaseText").GetComponent<Text>();
         elapsedText = top.Find("ExperimentTimer/ElapsedText").GetComponent<Text>();
         remainingText = top.Find("ExperimentTimer/RemainingText").GetComponent<Text>();
@@ -182,7 +188,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         RefreshClassButtonAppearance();
 
         confidenceRow = cls.Find("ConfidenceRow");
-        ClearChildren(confidenceRow);
+        foreach(Transform child in confidenceRow)if(child.name!="ConfidenceHighlight"){child.gameObject.SetActive(false);Destroy(child.gameObject);}
         confidence.Clear();
         var group = confidenceRow.GetComponent<ToggleGroup>() ?? confidenceRow.gameObject.AddComponent<ToggleGroup>();
         group.allowSwitchOff = true;
@@ -196,6 +202,8 @@ public sealed class SonarTaskScreen : SonarScreen {
             UIFactory.Size(tg, 42, 76);
             confidence.Add(tg);
         }
+
+        confidenceHighlight = UIFactory.ConfidenceHighlight(confidenceRow);
 
         var feedback = rightContent.Find("Feedback");
         var feedbackBox = feedback.Find("FeedbackBody/FeedbackBox");
@@ -314,6 +322,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         RefreshAlerts();
         ClearSelection(false);
         RebuildLofarHistory();
+        RefreshPhaseControls();
     }
 
     void OnTransition(PhaseTransitionReason r) {
@@ -330,6 +339,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             startPause.interactable = false;
             startPause.GetComponentInChildren<Text>().text = "Ended";
             exit.interactable = false;
+            RefreshPhaseControls();
             FinishCompletedRun();
             return;
         }
@@ -343,6 +353,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             audioService.PauseAll();
             startPause.GetComponentInChildren<Text>().text = "Resume";
             exit.interactable = true;
+            if(phase.AutoShowInstructions) ShowInstructions(true);
         } else if (r == PhaseTransitionReason.Pause) {
             audioService.PauseAll();
             startPause.GetComponentInChildren<Text>().text = "Resume";
@@ -352,14 +363,35 @@ public sealed class SonarTaskScreen : SonarScreen {
             startPause.GetComponentInChildren<Text>().text = "Pause";
             exit.interactable = false;
         }
+        RefreshPhaseControls();
+    }
+
+    void RefreshPhaseControls() {
+        startPause.gameObject.SetActive(!phase.DisablePauseAndExit || rt.State!=RunState.Running);
+        exit.gameObject.SetActive(!phase.DisablePauseAndExit || rt.State==RunState.Ready || rt.State==RunState.Ended);
+        instructionsButton.gameObject.SetActive(!string.IsNullOrWhiteSpace(phase.InstructionsFile));
+        instructionsButton.interactable=recordingReady && rt.State!=RunState.Running && !instructionsOpen;
+    }
+
+    void ShowInstructions(bool automatic) {
+        if(!recordingReady || instructionsOpen || rt.State==RunState.Running || string.IsNullOrWhiteSpace(phase.InstructionsFile))return;
+        instructionsOpen=true; startPause.interactable=false; RefreshPhaseControls();
+        recorder.Record(ResultEvent.Create(rt,"Instructions_Opened"));
+        InstructionsOverlay.Show(Manager.Root,AppState.SelectedPackage,phase.InstructionsFile,()=>{
+            instructionsOpen=false; recorder.Record(ResultEvent.Create(rt,"Instructions_Closed")); startPause.interactable=rt.State!=RunState.Ended; RefreshPhaseControls();
+            if(automatic && phase.AutoStart==YesNo.Yes)StartPause();
+        });
     }
 
     void StartPause() {
+        if(instructionsOpen)return;
         if (rt.State == RunState.Ready || rt.State == RunState.Paused) rt.StartOrResume();
-        else if (rt.State == RunState.Running) rt.Pause();
+        else if (rt.State == RunState.Running && !phase.DisablePauseAndExit) rt.Pause();
+        RefreshPhaseControls();
     }
 
     void Exit() {
+        if(phase.DisablePauseAndExit && rt.State!=RunState.Ready && rt.State!=RunState.Ended)return;
         if (rt.State == RunState.Ended || rt.State == RunState.Ready) {
             audioService.StopAll();
             if (rt.State == RunState.Ready) recorder.Finish(false, "OperatorExitBeforeStart");
@@ -428,7 +460,7 @@ public sealed class SonarTaskScreen : SonarScreen {
     }
 
     float[] BthLine(List<ActiveSignal> active, int n, long scanIndex) {
-        var o = NoiseLine(n, -1, scanIndex);
+        var o = NoiseLine(n, -1, scanIndex, phase.BackgroundNoise);
         float span = WaterfallDisplay.AngleSpan(phase.BTHView.DegStart, phase.BTHView.DegEnd);
         foreach (var a in active) {
             float jitter = (float)(
@@ -447,13 +479,13 @@ public sealed class SonarTaskScreen : SonarScreen {
     }
 
     float[] LofarLine(List<ResolvedSignal> signals, LOFARView v, int n, int wi, long scanIndex) {
-        var o = NoiseLine(n, wi, scanIndex);
+        var o = NoiseLine(n, wi, scanIndex, signals.Count==0 ? phase.LoFarBackgroundNoise : signals.Max(s=>s.LoFarBackgroundNoise ?? phase.LoFarBackgroundNoise));
         float hzSpan = Mathf.Max(.001f, v.HzEnd - v.HzStart);
         foreach (var s in signals) {
             foreach (var f in s.FreqTuples) {
                 float slow = (float)DeterministicNoise.Smooth(AppState.LoadedDefinition.ExperimentSettings.RandomizationSeed, phase.Index, s.ID, wi, scanIndex, 10, 31);
                 float fast = (float)DeterministicNoise.Signed(AppState.LoadedDefinition.ExperimentSettings.RandomizationSeed, phase.Index, s.ID, wi, scanIndex, 11);
-                float center = f.Frequency + (slow * .65f + fast * .15f) * phase.JitterFactor * Mathf.Max(1, f.Width);
+                float center = f.Frequency + (slow * .65f + fast * .15f) * (s.LoFarJitterFactor ?? phase.LoFarJitterFactor) * Mathf.Max(1, f.Width);
                 float sigma = Mathf.Max(.35f, f.Width / 2.355f);
                 // Gaussian energy beyond four sigma is visually negligible. Limiting the
                 // pixel range makes full-history reconstruction fast enough for interaction.
@@ -473,7 +505,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         return o;
     }
 
-    float[] NoiseLine(int n, int waterfall, long scanIndex) {
+    float[] NoiseLine(int n, int waterfall, long scanIndex, float noiseLevel) {
         var o = new float[n];
         int bandGroup = -1;
         double band = 0;
@@ -484,9 +516,22 @@ public sealed class SonarTaskScreen : SonarScreen {
                 band = DeterministicNoise.Smooth(AppState.LoadedDefinition.ExperimentSettings.RandomizationSeed, phase.Index, "BACKGROUND", waterfall, scanIndex, 2000 + g, 23);
             }
             double grain = DeterministicNoise.Unit(AppState.LoadedDefinition.ExperimentSettings.RandomizationSeed, phase.Index, "BACKGROUND", waterfall, scanIndex, x);
-            o[x] = Mathf.Clamp01(phase.BackgroundNoise * (.25f + (float)grain * .65f + (float)(band * .1)));
+            o[x] = Mathf.Clamp01(noiseLevel * (.25f + (float)grain * .65f + (float)(band * .1)));
         }
         return o;
+    }
+
+    void ResetClassification() {
+        awaitingConfidence = false;
+        SetClassificationEnabled(true);
+        selectedClass = null;
+        RefreshClassButtonAppearance();
+        confirm.interactable = false;
+        foreach (var t in confidence) {
+            t.isOn = false;
+            t.interactable = false;
+        }
+        if(confidenceHighlight)confidenceHighlight.SetActive(false);
     }
 
     void OnBthClick(float n) {
@@ -506,15 +551,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         e.BTH_SelectedBearing = SelectedBearingText();
         recorder.Record(e);
 
-        awaitingConfidence = false;
-        SetClassificationEnabled(true);
-        selectedClass = null;
-        RefreshClassButtonAppearance();
-        confirm.interactable = false;
-        foreach (var t in confidence) {
-            t.isOn = false;
-            t.interactable = false;
-        }
+        ResetClassification();
 
         // Reconstruct the complete visible LOFAR time window for this bearing aperture.
         // Past scanlines remain historical rather than restarting at the top.
@@ -623,6 +660,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         if (!hasSelection || string.IsNullOrWhiteSpace(selectedClass) || awaitingConfidence) return;
         recorder.Record(ClassificationEvent("Class_Confirmed"));
         awaitingConfidence = true;
+        if(confidenceHighlight)confidenceHighlight.SetActive(true);
         SetClassificationEnabled(false);
         confirm.interactable = false;
         foreach (var t in confidence) t.interactable = true;
@@ -671,7 +709,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             markerLife = Mathf.Max(1f / Mathf.Max(1f, phase.WaterfallScanRateHz), lastVisible - rt.PhaseElapsedSec);
         }
         bth.AddSMarker(n, markerLife);
-        ClearSelection();
+        if(phase.DeselectBTHSignalAfterClassification)ClearSelection();else ResetClassification();
     }
 
     void EnsureFeedbackIcons(Transform feedbackBox) {
@@ -844,6 +882,7 @@ public sealed class SonarTaskScreen : SonarScreen {
     }
 
     void ClearSelection(bool rebuildLofar = true) {
+        if(confidenceHighlight)confidenceHighlight.SetActive(false);
         bool changed = hasSelection;
         hasSelection = false;
         awaitingConfidence = false;

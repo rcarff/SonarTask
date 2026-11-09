@@ -13,6 +13,9 @@ using System.Threading.RateLimiting;
 
 var dataRoot = Environment.GetEnvironmentVariable("SONAR_DATA_ROOT") ?? "/data";
 var experimentRoot = Path.Combine(dataRoot, "experiments");
+var soundsRoot = Path.Combine(dataRoot, "sounds");
+Directory.CreateDirectory(soundsRoot);
+ExperimentFiles.SoundsRoot = soundsRoot;
 var resultRoot = Path.Combine(dataRoot, "results");
 var configRoot = Path.Combine(dataRoot, "config");
 Directory.CreateDirectory(experimentRoot);
@@ -172,7 +175,47 @@ app.MapGet("/experiments/{package}/assets/{**asset}", async (HttpContext c, stri
 {
     if (!await CanAccessPackage(c, dbFile, package)) return Results.Forbid();
     var f = SafeExperimentFile(experimentRoot, package, asset);
+    if(!File.Exists(f) && CommonSoundFiles.IsAudio(asset)){try{f=CommonSoundFiles.SafeFile(soundsRoot,asset);}catch(ArgumentException){return Results.NotFound();}}
     return File.Exists(f) ? Results.File(f, ContentType(f)) : Results.NotFound();
+}).RequireAuthorization();
+
+app.MapGet("/sounds/{name}", (string name) => {
+    try { var f=CommonSoundFiles.SafeFile(soundsRoot,name);return CommonSoundFiles.IsAudio(f)&&File.Exists(f)?Results.File(f,ContentType(f)):Results.NotFound(); }
+    catch(ArgumentException){return Results.BadRequest(new{message="Invalid sound name."});}
+}).RequireAuthorization();
+
+app.MapGet("/admin/sounds", (HttpContext c) => Admin(c,authFile) ? Results.Ok(Directory.GetFiles(soundsRoot).Where(CommonSoundFiles.IsAudio).Select(f=>new{name=Path.GetFileName(f),size=new FileInfo(f).Length,modifiedUtc=File.GetLastWriteTimeUtc(f)}).OrderBy(x=>x.name)) : Results.Unauthorized()).RequireAuthorization();
+
+app.MapPost("/admin/sounds/upload", async (HttpContext c,IFormFile file) => {
+    if(!Admin(c,authFile))return Results.Unauthorized();
+    string? temp=null;
+    try {
+        var target=CommonSoundFiles.SafeFile(soundsRoot,file.FileName);
+        if(!CommonSoundFiles.IsAudio(target))return Results.BadRequest(new{message="Only .wav and .mp3 files are accepted."});
+        if(file.Length<=0)return Results.BadRequest(new{message="The selected sound is empty."});
+        if(file.Length>64L*1024*1024)return Results.Json(new{message="Upload exceeds 64 MiB limit."},statusCode:413);
+        if(File.Exists(target))return Results.Conflict(new{message="A sound with this name already exists."});
+        temp=Path.Combine(soundsRoot,".upload-"+Guid.NewGuid().ToString("N"));
+        await using(var output=new FileStream(temp,FileMode.CreateNew,FileAccess.Write,FileShare.None))await file.CopyToAsync(output);
+        try{File.Move(temp,target,false);}catch(IOException)when(File.Exists(target)){return Results.Conflict(new{message="A sound with this name already exists."});}
+        return Results.Ok(new{message="Sound uploaded."});
+    }catch(ArgumentException e){return Results.BadRequest(new{message=e.Message});}
+    finally{if(temp!=null && File.Exists(temp))File.Delete(temp);}
+}).DisableAntiforgery().RequireAuthorization();
+
+app.MapDelete("/admin/sounds/{name}", (HttpContext c,string name) => {
+    if(!Admin(c,authFile))return Results.Unauthorized();
+    try {
+        var target=CommonSoundFiles.SafeFile(soundsRoot,name);if(!File.Exists(target))return Results.NotFound();
+        var packages=new List<string>();
+        foreach(var dir in Directory.GetDirectories(experimentRoot)) {
+            var definition=Path.Combine(dir,"experiment.json");if(!File.Exists(definition))continue;
+            try{using var doc=JsonDocument.Parse(File.ReadAllText(definition));if(CommonSoundFiles.References(doc.RootElement,dir,Path.GetFileName(target)))packages.Add(Path.GetFileName(dir));}
+            catch(JsonException){return Results.Conflict(new{message="Cannot check references in package "+Path.GetFileName(dir)+"; repair its experiment.json before deleting sounds."});}
+        }
+        if(packages.Count>0)return Results.Conflict(new{message="Sound is referenced by packages: "+string.Join(", ",packages),packages});
+        File.Delete(target);return Results.Ok(new{message="Sound deleted."});
+    }catch(ArgumentException e){return Results.BadRequest(new{message=e.Message});}
 }).RequireAuthorization();
 
 app.MapGet("/results/completed", async (HttpContext c, string subject, string experiment) =>
@@ -339,7 +382,7 @@ app.MapDelete("/admin/experiments/{package}", async (HttpContext c, string packa
 }).RequireAuthorization();
 
 app.MapGet("/admin/results", async (HttpContext c, string? filter) =>
-    Admin(c, authFile) ? Results.Ok(await Db.Results(dbFile, filter ?? "")) : Results.Unauthorized()).RequireAuthorization();
+    Admin(c, authFile) ? Results.Ok(await Db.Results(dbFile, filter ?? "", resultRoot)) : Results.Unauthorized()).RequireAuthorization();
 
 app.MapGet("/admin/results/file/{fileName}", (HttpContext c, string fileName) =>
 {
@@ -943,6 +986,7 @@ static class AuthStore
 
 static class ExperimentFiles
 {
+    public static string SoundsRoot = "";
     public sealed class Summary
     {
         public string packageName { get; set; } = "";
@@ -980,8 +1024,7 @@ static class ExperimentFiles
         CheckAsset(packageDir, instructions, "InstructionsFile", e);
         if (!root.TryGetProperty("ExperimentSettings", out var set) || set.ValueKind != JsonValueKind.Object) { e.Add("ExperimentSettings is required."); return e; }
         if (!set.TryGetProperty("RandomizationSeed", out var seed) || seed.ValueKind != JsonValueKind.Number || !seed.TryGetInt64(out var seedVal) || seedVal == 0) e.Add("RandomizationSeed must be a non-zero integer.");
-        if (set.TryGetProperty("ShowResultsAtEnd", out var showResults) && (showResults.ValueKind != JsonValueKind.String || (showResults.GetString() != "Yes" && showResults.GetString() != "No"))) e.Add("ShowResultsAtEnd must be 'Yes' or 'No'.");
-        if (set.TryGetProperty("HideLofarSignalsIfNoSelectedBTH", out var hideLofar) && (hideLofar.ValueKind != JsonValueKind.String || (hideLofar.GetString() != "Yes" && hideLofar.GetString() != "No"))) e.Add("HideLofarSignalsIfNoSelectedBTH must be 'Yes' or 'No'.");
+        ValidateOptions(root,e);
         var defaultSignals = new HashSet<string>(StringComparer.Ordinal);
         if (set.TryGetProperty("SignalDefinitions", out var defs) && defs.ValueKind == JsonValueKind.Object)
         {
@@ -1001,7 +1044,7 @@ static class ExperimentFiles
             if (pn.ValueKind != JsonValueKind.String) continue;
             string name = pn.GetString()!;
             if (!phases.TryGetProperty(name, out var phase) || phase.ValueKind != JsonValueKind.Object) { e.Add($"PhaseOrder references missing phase '{name}'."); continue; }
-            if (phase.TryGetProperty("HideLofarSignalsIfNoSelectedBTH", out var phaseHideLofar) && (phaseHideLofar.ValueKind != JsonValueKind.String || (phaseHideLofar.GetString() != "Yes" && phaseHideLofar.GetString() != "No"))) e.Add($"Phase '{name}' HideLofarSignalsIfNoSelectedBTH must be 'Yes' or 'No'.");
+            if(phase.TryGetProperty("InstructionsFile",out var pi) && pi.ValueKind==JsonValueKind.String && !string.IsNullOrWhiteSpace(pi.GetString()))CheckAsset(packageDir,pi.GetString()!, $"Phase {name} InstructionsFile",e);
             var available = new HashSet<string>(defaultSignals, StringComparer.Ordinal);
             if (phase.TryGetProperty("SignalDefinitions", out var ovs) && ovs.ValueKind == JsonValueKind.Array)
                 foreach (var ov in ovs.EnumerateArray()) if (Text(ov, "Name", out var on))
@@ -1039,7 +1082,26 @@ static class ExperimentFiles
         v = ""; if (!x.TryGetProperty(n, out var p) || p.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(p.GetString())) return false;
         v = p.GetString()!; return true;
     }
+    static void ValidateOptions(JsonElement value,List<string> errors,string path="") {
+        if(value.ValueKind==JsonValueKind.Array){int i=0;foreach(var item in value.EnumerateArray())ValidateOptions(item,errors,path+"["+(i++)+"]");return;}
+        if(value.ValueKind!=JsonValueKind.Object)return;
+        foreach(var p in value.EnumerateObject()){
+            var label=path+"."+p.Name;
+            if(p.Name is "LoFarJitterFactor" or "LoFarBackgroundNoise"){
+                if(p.Value.ValueKind!=JsonValueKind.Null && (p.Value.ValueKind!=JsonValueKind.Number || !p.Value.TryGetSingle(out var n) || !float.IsFinite(n) || n<0 || n>1))errors.Add(label+" must be 0..1.");
+            }
+            if(p.Name is "AutoStart" or "TrainingAllowed" or "AlertEnabled" or "TrainingAreaEnabled" or "FeedbackEnabled" or "ClassificationTallyEnabled" or "AlertsEnabled" or "BTHOverlapAudio" or "SignalAudioEnabled" or "HideLofarSignalsIfNoSelectedBTH" or "ShowElapsedTime" or "ShowRemainingTime" or "ShowResultsAtEnd" or "DeselectBTHSignalAfterClassification" or "DisablePauseAndExit" or "AutoShowInstructions") {
+                var v=p.Value;bool valid=v.ValueKind is JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null || v.ValueKind==JsonValueKind.Number && v.TryGetInt32(out var n) && (n==0||n==1) || v.ValueKind==JsonValueKind.String && new[]{"Yes","No","True","False"}.Contains(v.GetString(),StringComparer.OrdinalIgnoreCase);
+                if(!valid)errors.Add(label+" must be Yes/No, True/False, a boolean or 1/0.");
+            }
+            ValidateOptions(p.Value,errors,label);
+        }
+    }
     static float Number(JsonElement x, string n, float d) => x.TryGetProperty(n, out var p) && p.ValueKind == JsonValueKind.Number && p.TryGetSingle(out var f) ? f : d;
+    static bool CommonAudioExists(string rel,string label) {
+        if(!label.EndsWith("AudioFile")&&!label.EndsWith("BackgroundAudio"))return false;
+        try{return CommonSoundFiles.IsAudio(rel)&&File.Exists(CommonSoundFiles.SafeFile(SoundsRoot,rel));}catch(ArgumentException){return false;}
+    }
     static void CheckAsset(string root, string rel, string label, List<string> e)
     {
         try
@@ -1047,9 +1109,30 @@ static class ExperimentFiles
             if (Uri.TryCreate(rel, UriKind.Absolute, out _)) { e.Add(label + " must be a package-relative path."); return; }
             var full = Path.GetFullPath(Path.Combine(root, rel));
             if (!full.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.Ordinal)) { e.Add(label + " escapes the package directory."); return; }
-            if (!File.Exists(full)) e.Add(label + " references missing file '" + rel + "'.");
+            if (!File.Exists(full) && !CommonAudioExists(rel,label)) e.Add(label + " references missing file '" + rel + "'.");
         }
         catch { e.Add(label + " contains an invalid path."); }
+    }
+}
+
+static class CommonSoundFiles {
+    public static string Normalize(string name) {
+        if(name!=null && name.StartsWith("Sounds/",StringComparison.OrdinalIgnoreCase))name=name.Substring(7);
+        if(string.IsNullOrWhiteSpace(name)||name.Contains("..")||name.IndexOfAny("/\\<>:\"|?*".ToCharArray())>=0||name.IndexOfAny(Path.GetInvalidFileNameChars())>=0||name.Trim()!=name||name.EndsWith(".")||Array.Exists(name.ToCharArray(),char.IsControl))throw new ArgumentException("Common sounds require a flat file name.");
+        return name;
+    }
+    public static string SafeFile(string root,string name)=>Path.Combine(root,Normalize(name));
+    public static bool IsAudio(string name)=>string.Equals(Path.GetExtension(name),".wav",StringComparison.OrdinalIgnoreCase)||string.Equals(Path.GetExtension(name),".mp3",StringComparison.OrdinalIgnoreCase);
+    public static bool References(JsonElement value,string package,string name) {
+        if(value.ValueKind==JsonValueKind.Array)return value.EnumerateArray().Any(v=>References(v,package,name));
+        if(value.ValueKind!=JsonValueKind.Object)return false;
+        foreach(var p in value.EnumerateObject()) {
+            if((p.Name=="AudioFile"||p.Name=="BackgroundAudio")&&p.Value.ValueKind==JsonValueKind.String){
+                var rel=p.Value.GetString()!;try{if(string.Equals(Normalize(rel),name,StringComparison.OrdinalIgnoreCase)&&!File.Exists(Path.Combine(package,rel)))return true;}catch(ArgumentException){}
+            }
+            if(References(p.Value,package,name))return true;
+        }
+        return false;
     }
 }
 
@@ -1184,13 +1267,13 @@ CREATE TABLE IF NOT EXISTS run_external_test_context(
         q.CommandText = "INSERT OR IGNORE INTO event_sequences VALUES($r,$n)"; q.Parameters.AddWithValue("$r", r); q.Parameters.AddWithValue("$n", n); await q.ExecuteNonQueryAsync();
     }
 
-    public static async Task<object[]> Results(string f, string filter)
+    public static async Task<object[]> Results(string f, string filter, string resultRoot)
     {
         await using var c = C(f); await c.OpenAsync(); var q = c.CreateCommand();
-        q.CommandText = "SELECT csv_file,run_id,subject_id,experiment_package,started_utc,status FROM runs WHERE csv_file LIKE $f ORDER BY started_utc DESC LIMIT 5000";
+        q.CommandText = "SELECT csv_file,run_id,subject_id,experiment_package,started_utc,status FROM runs WHERE csv_file LIKE $f ORDER BY started_utc DESC";
         q.Parameters.AddWithValue("$f", "%" + filter + "%"); var l = new List<object>();
         await using var r = await q.ExecuteReaderAsync();
-        while (await r.ReadAsync()) l.Add(new { fileName = r.GetString(0), runId = r.GetString(1), subjectId = r.GetString(2), experimentPackage = r.GetString(3), startedUtc = r.GetString(4), status = r.GetString(5) });
+        while (l.Count<5000 && await r.ReadAsync()) if(File.Exists(Path.Combine(resultRoot,Path.GetFileName(r.GetString(0))))) l.Add(new { fileName = r.GetString(0), runId = r.GetString(1), subjectId = r.GetString(2), experimentPackage = r.GetString(3), startedUtc = r.GetString(4), status = r.GetString(5) });
         return l.ToArray();
     }
 

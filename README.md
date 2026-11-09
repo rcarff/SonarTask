@@ -175,7 +175,7 @@ Experiments/MyExperiment/
 
 Instruction files use a deliberately small Markdown subset: headings, paragraphs, bold/italic, numbered/bulleted lists, block quotes, horizontal rules and local images. The same renderer is used on native and Web builds, avoiding an embedded native browser dependency.
 
-Asset references are package-relative. Path traversal and absolute/external paths are rejected by the server.
+Asset references are package-relative. Audio also falls back to the shared Sounds library when the package file is missing. Path traversal and absolute/external paths are rejected by the server.
 
 Phase duration is computed rather than authored explicitly:
 
@@ -350,7 +350,7 @@ The reference signal/noise model includes:
 - Narrowband harmonic tuples.
 - Low-frequency wander plus short-period jitter.
 - Deterministically keyed random background noise.
-- Configurable background-noise level and jitter factor.
+- Configurable BTH background noise and jitter, with independent `LoFarBackgroundNoise` and `LoFarJitterFactor` overrides at experiment, phase, signal definition and instance levels. LOFAR row noise uses the maximum effective value of its source signals, or the phase value for an empty row.
 - Multiple palettes: Green, Grayscale and Cividis-style color-blind-safer rendering.
 
 The random function is keyed by experiment seed, phase, signal ID, waterfall and scan index rather than Unity frame count. The scientific target is mathematically repeatable state, not byte-identical pixels across Metal/Direct3D/WebGL.
@@ -361,7 +361,7 @@ The traditional Green palette encodes signal strength primarily by luminance, no
 
 Pause freezes the experiment clock, phase clock, BTH/LOFAR history and alert schedule, and pauses background/signal audio at its current playback position. Resume continues those states.
 
-The first phase starts only when **Start** is pressed. At a phase boundary, the *incoming phase's* resolved `AutoStart` decides whether it begins immediately or the task enters `EXP_AutoPaused` and waits for Resume.
+The first phase starts when **Start** is pressed, or after closing automatically shown instructions when `AutoStart` is Yes. At a phase boundary, the incoming phase's resolved `AutoStart` decides whether it begins immediately or the task enters `EXP_AutoPaused` and waits for Resume. `AutoShowInstructions` always pauses the incoming phase first; closing the instructions resumes it automatically only when `AutoStart` is Yes. `DisablePauseAndExit` hides Pause while Running and Exit after the initial Start; Start and between-phase Resume remain available.
 
 Background audio and selected-signal audio use independent audio channels and are mixed together. When signal audio is enabled and exactly one signal is selected, its clip plays together with the background audio. For selections containing multiple signals, `BTHOverlapAudio = Yes` plays all selected signal clips simultaneously; `No` suppresses signal audio for that overlapping selection. Clearing/changing the selection fades/stops only the selected-signal sources; it does not stop the background.
 
@@ -594,3 +594,24 @@ The deployed Settings > External Studies editor can generate a secure 24-hour Te
 ### External Study test-URL save fix (fixed35)
 
 **Save + Generate Secure Test URL** now persists the current External Study editor values before creating a test token. This prevents the visible **Enabled** checkbox, Provider, Study/Project ID, assignment mode, or group sequence from disagreeing with the server-side mapping used by the participant launch endpoint. Web Local Test uses the same save-before-generate behavior. The launch API now reports separate messages for a missing mapping versus a mapping that exists but is disabled.
+
+
+## Phase controls and instructions
+
+`DeselectBTHSignalAfterClassification` defaults to `Yes`. Set it to `No` to keep the BTH selection, LOFAR history and selected audio after confidence is recorded; the classification controls reset for another response. Confirm draws an amber border around the confidence row until a confidence level is chosen.
+
+`DisablePauseAndExit` defaults to `No`. When `Yes`, Pause is hidden while Running and Exit is hidden throughout the phase after the initial Start. Start and Resume remain available before a phase starts and between phases. Exit appears after the experiment ends.
+
+`AutoShowInstructions` defaults to `No`. When `Yes`, instructions open before the first phase and between phases. Close starts/resumes that phase only if `AutoStart` is `Yes`; otherwise the operator presses Start/Resume. The in-task Instructions button is available before Start, while paused and between phases, and disabled while Running. Each phase may set `InstructionsFile`; it inherits the experiment file, then `instructions.md`. Use an empty file value to hide the button. The separate Instructions scene is retained for external-study launches and uses phase 1's resolved file.
+
+All three switches can be set in ExperimentSettings and overridden per phase. Yes/No fields accept case-insensitive `Yes`, `No`, `True`, `False`, JSON booleans and integer `1`/`0`; serialized output uses `Yes`/`No`.
+
+## Independent LOFAR jitter and noise
+
+`LoFarJitterFactor` and `LoFarBackgroundNoise` are optional numbers from 0 to 1. Each resolves from signal instance → phase signal-definition override → experiment signal definition → phase LOFAR value → ExperimentSettings LOFAR value → resolved phase `JitterFactor` / `BackgroundNoise`. They affect only LOFAR; BTH retains its existing values. A LOFAR row uses the **maximum effective noise** among signals feeding that row; an empty row uses phase LOFAR noise. Live and reconstructed history use the same calculation and deterministic keys. Omitting these fields preserves existing rendering.
+
+## Shared Sounds library
+
+Audio references (`AudioFile` and `BackgroundAudio`) first load the package-relative file. When absent, a flat `name.wav` or `Sounds/name.wav` falls back to the common Sounds library; the `Sounds/` prefix is case-insensitive. Nested paths, `..`, separators and invalid filename characters are rejected for common lookup. Only `.wav` and `.mp3` are shared. Images and instructions remain package-relative.
+
+The common directory is `<project>/Sounds` in Editor/local Web development, `DataRoot/Sounds` in desktop players and `/data/sounds` on the server (`Server/Deploy/Sounds` on the host). Desktop builds seed missing common files even for initialized installs. Local Web builds copy sounds and generate a read-only manifest. Web Settings > Common Audio Files lists names and sizes, uploads files up to 64 MiB, and deletes unused files. Duplicate names return 409. Deletion of a referenced common file returns 409 listing referencing packages; package-local files shadow the common file.

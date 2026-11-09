@@ -118,7 +118,7 @@ public sealed class ExperimentRuntime {
         alerted.Clear();
 
         // Per the specification, the incoming phase controls whether it auto-starts.
-        if (Phase.AutoStart == YesNo.Yes) {
+        if (Phase.AutoStart == YesNo.Yes && !Phase.AutoShowInstructions) {
             PhaseTransition?.Invoke(PhaseTransitionReason.Start);
             ProcessEvents();
             return true;
