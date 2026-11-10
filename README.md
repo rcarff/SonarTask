@@ -610,6 +610,10 @@ All three switches can be set in ExperimentSettings and overridden per phase. Ye
 
 `LoFarJitterFactor` and `LoFarBackgroundNoise` are optional numbers from 0 to 1. Each resolves from signal instance → phase signal-definition override → experiment signal definition → phase LOFAR value → ExperimentSettings LOFAR value → resolved phase `JitterFactor` / `BackgroundNoise`. They affect only LOFAR; BTH retains its existing values. A LOFAR row uses the **maximum effective noise** among signals feeding that row; an empty row uses phase LOFAR noise. Live and reconstructed history use the same calculation and deterministic keys. Omitting these fields preserves existing rendering.
 
+## Lab Streaming Layer (FIXED37)
+
+Enable `ExperimentSettings.LslEnabled` or select the `LslDemo` package to publish result markers, continuous state and live BTH/LOFAR intensity streams. Desktop builds use liblsl; web builds connect to a local Python bridge. Per-machine overrides use `SONAR_LSL` / `lsl.json` on desktop and `?lsl=on|off` in the browser. External controllers can start, pause, resume, annotate and show recorded alerts. CSV columns remain unchanged. See [the stream contract](Documentation/LSL.md), [bridge setup and examples](Tools/LslBridge/README.md), and [validation checklist](Documentation/TEST_PLAN.md). The included macOS 1.16.2 library is Intel; the bridge folder provides a universal-build script for Apple Silicon deployment.
+
 ## Shared Sounds library
 
 Audio references (`AudioFile` and `BackgroundAudio`) first load the package-relative file. When absent, a flat `name.wav` or `Sounds/name.wav` falls back to the common Sounds library; the `Sounds/` prefix is case-insensitive. Nested paths, `..`, separators and invalid filename characters are rejected for common lookup. Only `.wav` and `.mp3` are shared. Images and instructions remain package-relative.

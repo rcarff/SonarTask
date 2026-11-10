@@ -38,3 +38,14 @@ External-study metadata JSON now includes `ExternalTestMode`. It is `true` only 
 ## Instruction viewing events (FIXED36)
 
 `Instructions_Opened` and `Instructions_Closed` record in-experiment instruction overlay viewing, including automatic phase instruction prompts. They use the current phase and runtime clocks. No CSV columns were added; the header is unchanged. Viewing instructions before the task scene through the external-study Instructions scene does not create these run events.
+
+## LSL events and metadata (FIXED37)
+
+The CSV header remains unchanged. New event types:
+
+- `LSL_Command`: applied control command, or rejected command. Alert_Type holds the command name or `Rejected:Invalid`, `Rejected:Disabled`, `Rejected:Paused`, `Rejected:Ready`, or `Rejected:AlertsDisabled`. Alert_Text retains external marker/alert text, capped at 200 characters.
+- `LSL_Marker`: external annotation; text is in Alert_Text.
+- `LSL_Alert_Shown`: accepted external alert, with Alert_Type, Alert_Text, Alert_Bearing (three digits), and Alert_SignalId. It shares authored alert display/expiry behavior.
+- `LSL_Connected`, `LSL_Disconnected`: observed transport availability changes during a run. Native connected means local outlets are ready; it does not certify that LabRecorder is recording.
+
+Run metadata adds `LslEnabled` (bool), `LslMode` (Off/Native/Bridge), and `LslSourceId` (stable per-install/browser GUID). The server preserves these fields. All accepted CSV events are mirrored to SonarTask-Markers with identical per-run sequence numbers and full run context. An optional external command `id` is echoed only in marker JSON. `Run_Begin`, `Run_Finished`, and `Waterfall_Axes` are LSL-only markers and never add CSV rows. Their seq is the last accepted event sequence (0 before the first event). See [LSL.md](LSL.md) for the full contract and timing limits.

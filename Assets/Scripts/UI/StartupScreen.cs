@@ -26,7 +26,7 @@ namespace SonarTask.UI
             var settings = panel.Find("Footer/SettingsButton").GetComponent<Button>();
             var exitProgram = panel.Find("Footer/ExitProgramButton").GetComponent<Button>();
 
-            version.text = "Version " + AppState.Version;
+            version.text = "Version " + AppState.Version + "   LSL override: " + LslService.Ensure().OverrideMode + " (Experiment follows package)";
             locationCombo.EnsureVisuals();
             operatorCombo.EnsureVisuals();
             locationCombo.SetOptions(LocalHistory.Load("Location").Where(x => !string.IsNullOrWhiteSpace(x)));

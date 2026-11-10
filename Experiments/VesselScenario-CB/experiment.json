@@ -4,6 +4,7 @@
   "Version": "1.0",
   "InstructionsFile": "instructions.md",
   "ExperimentSettings": {
+    "LslEnabled": "No",
     "PhaseOrder": ["Orientation2", "Practice2", "Test2", "Orientation1", "Practice1", "Test1"],
     "RandomizationSeed": 93856105,
     "AutoStart": "No",

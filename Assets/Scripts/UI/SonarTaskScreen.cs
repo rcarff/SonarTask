@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SonarTask.Core;
 using SonarTask.Rendering;
 using SonarTask.Services;
@@ -38,6 +39,8 @@ public sealed class SonarTaskScreen : SonarScreen {
     readonly List<ActiveAlertLine> alerts = new();
     float scanAccumulator;
     string definitionJson;
+    Text lslStatus;
+    Image lslShape;
 
     sealed class ActiveAlertLine { public ResolvedAlert alert; public float expires; }
 
@@ -102,6 +105,18 @@ public sealed class SonarTaskScreen : SonarScreen {
         exit.onClick.RemoveAllListeners();
         exit.onClick.AddListener(Exit);
         info.text = $"Subject: {AppState.SubjectId}    Experiment: {AppState.LoadedDefinition.Name}";
+        if (!AppState.ResolvedExperiment.LslEnabled) return;
+        var chip = UIFactory.GO("LslStatus", top);
+        UIFactory.Size((RectTransform)chip.transform, 54, 175);
+        chip.transform.SetSiblingIndex(exit.transform.GetSiblingIndex());
+        var layout = chip.AddComponent<HorizontalLayoutGroup>();
+        layout.childControlWidth = true; layout.childControlHeight = true;
+        layout.childForceExpandWidth = false; layout.childForceExpandHeight = false;
+        layout.childAlignment = TextAnchor.MiddleCenter; layout.spacing = 6;
+        var shape = UIFactory.GO("ConnectionShape", chip.transform);
+        lslShape = shape.AddComponent<Image>();
+        var size = shape.AddComponent<LayoutElement>(); size.preferredWidth = 10; size.preferredHeight = 10;
+        lslStatus = UIFactory.Text(LslService.Ensure().Status, chip.transform, 12, TextAnchor.MiddleLeft);
     }
 
     void BuildDisplays() {
@@ -299,17 +314,94 @@ public sealed class SonarTaskScreen : SonarScreen {
             e.Signal_ID = s.ID;
             recorder.Record(e);
         };
-        rt.AlertShown += a => {
-            if (phase.AlertsEnabled != YesNo.Yes) return;
-            alerts.Insert(0, new ActiveAlertLine { alert = a, expires = rt.PhaseElapsedSec + a.DurationSec });
-            var e = ResultEvent.Create(rt, "Alert_Shown");
-            e.Alert_Type = a.Type;
-            e.Alert_Text = a.Text;
-            e.Alert_Bearing = a.Bearing.ToString("D3");
-            e.Alert_SignalId = a.SignalID;
+        rt.AlertShown += a => ShowAlert(a, "Alert_Shown");
+    }
+
+    void ShowAlert(ResolvedAlert a, string eventType, string commandId = null) {
+        if (phase.AlertsEnabled != YesNo.Yes) return;
+        alerts.Insert(0, new ActiveAlertLine { alert = a, expires = rt.PhaseElapsedSec + a.DurationSec });
+        var e = ResultEvent.Create(rt, eventType);
+        e.Alert_Type = a.Type; e.Alert_Text = a.Text;
+        e.Alert_Bearing = a.Bearing.ToString("D3", CultureInfo.InvariantCulture);
+        e.Alert_SignalId = a.SignalID; e.LslCommandId = commandId;
+        recorder.Record(e);
+        // Treat all alert content literally, including external '<' and '>' characters.
+        alertText.supportRichText = false;
+        RefreshAlerts();
+    }
+
+    static string CommandText(JToken value, int limit) {
+        string text = value?.Type == JTokenType.String ? (string)value : "";
+        return text.Length > limit ? text.Substring(0, limit) : text;
+    }
+
+    void DrainLslCommands() {
+        var service = LslService.Instance;
+        if (!service || !recordingReady || rt.State == RunState.Ended) return;
+        for (int i = 0; i < 32 && service.TryReadCommand(out string raw); i++) {
+            JObject command;
+            try {
+                if (raw.Length > 8192) throw new FormatException("Command exceeds 8192 characters.");
+                command = JObject.Parse(raw);
+            } catch (Exception) {
+                var invalid = ResultEvent.Create(rt, "LSL_Command");
+                invalid.Alert_Type = "Rejected:Invalid";
+                recorder.Record(invalid);
+                Debug.LogWarning("LSL ignored malformed command.");
+                continue;
+            }
+            string cmd = CommandText(command["cmd"], 32);
+            var e = ResultEvent.Create(rt, "LSL_Command");
+            e.LslCommandId = CommandText(command["id"], 200);
+            e.Alert_Text = CommandText(command["text"], 200);
+            e.Alert_Type = cmd;
+            string rejected = null;
+            bool buttonEnabled = startPause.interactable && startPause.gameObject.activeInHierarchy && !instructionsOpen;
+            switch (cmd) {
+                case "start":
+                case "pause":
+                case "resume":
+                    bool applicable = cmd == "start" ? rt.State == RunState.Ready : cmd == "pause" ? rt.State == RunState.Running && !phase.DisablePauseAndExit : rt.State == RunState.Paused;
+                    if (buttonEnabled && applicable) StartPause();
+                    else rejected = "Disabled";
+                    break;
+                case "marker":
+                    e.EventType = "LSL_Marker";
+                    break;
+                case "alert":
+                    double bearing = 0, duration = phase.AlertDurationSec;
+                    bool valid = !string.IsNullOrWhiteSpace(e.Alert_Text)
+                        && command["bearing"] != null
+                        && (command["bearing"].Type == JTokenType.Integer || command["bearing"].Type == JTokenType.Float)
+                        && double.TryParse(command["bearing"].ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out bearing)
+                        && !double.IsNaN(bearing) && !double.IsInfinity(bearing);
+                    if (command["durationSec"] != null)
+                        valid &= (command["durationSec"].Type == JTokenType.Integer || command["durationSec"].Type == JTokenType.Float)
+                            && double.TryParse(command["durationSec"].ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out duration)
+                            && !double.IsNaN(duration) && !double.IsInfinity(duration);
+                    if (!valid) rejected = "Invalid";
+                    else if (rt.State != RunState.Running) rejected = rt.State.ToString();
+                    else if (phase.AlertsEnabled != YesNo.Yes || !rt.Experiment.LslAllowExternalAlerts) rejected = "AlertsDisabled";
+                    else {
+                        var a = new ResolvedAlert {
+                            Text = e.Alert_Text,
+                            Bearing = (int)((bearing % 360 + 360) % 360),
+                            Type = CommandText(command["type"], 200),
+                            SignalID = CommandText(command["signalId"], 200),
+                            DurationSec = (float)Math.Max(1, Math.Min(600, duration))
+                        };
+                        if (string.IsNullOrEmpty(a.Type)) a.Type = "EXTERNAL";
+                        ShowAlert(a, "LSL_Alert_Shown", e.LslCommandId);
+                    }
+                    break;
+                default: rejected = "Invalid"; break;
+            }
+            if (rejected != null) {
+                e.Alert_Type = "Rejected:" + rejected;
+                Debug.LogWarning("LSL command " + cmd + " " + e.Alert_Type);
+            }
             recorder.Record(e);
-            RefreshAlerts();
-        };
+        }
     }
 
     void ConfigurePhase() {
@@ -334,6 +426,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             _ => "EXP_Ended"
         };
         recorder.Record(ResultEvent.Create(rt, et));
+        if (r == PhaseTransitionReason.Start || r == PhaseTransitionReason.AutoPause) LslService.Instance?.Axes(rt);
         if (r == PhaseTransitionReason.End) {
             audioService.StopAll();
             startPause.interactable = false;
@@ -408,6 +501,14 @@ public sealed class SonarTaskScreen : SonarScreen {
 
     void Update() {
         if (rt == null) return;
+        if (recordingReady) {
+            LslService.Instance?.Tick(rt, recorder, hasSelection ? selectionBearing : float.NaN);
+            DrainLslCommands();
+        }
+        if (lslStatus && LslService.Instance) {
+            lslStatus.text = LslService.Instance.Status;
+            lslShape.color = LslService.Instance.Enabled ? Color.green : Color.gray;
+        }
         float dt = Time.unscaledDeltaTime;
         if (rt.State == RunState.Running) {
             rt.Advance(dt);
@@ -447,7 +548,8 @@ public sealed class SonarTaskScreen : SonarScreen {
 
     void RenderScan() {
         var active = rt.Active();
-        bth.PushScanline(BthLine(active, 1024, rt.ScanIndex), phase.WaterfallPalette);
+        var bthLine = BthLine(active, 1024, rt.ScanIndex);
+        bth.PushScanline(bthLine, phase.WaterfallPalette);
         List<ResolvedSignal> sources;
         if (hasSelection)
             sources = CurrentSignalsInSelection(active);
@@ -455,8 +557,13 @@ public sealed class SonarTaskScreen : SonarScreen {
             sources = new List<ResolvedSignal>();
         else
             sources = active.Where(a => BearingInView(a.Bearing)).Select(a => a.Definition).ToList();
-        for (int i = 0; i < lofars.Count; i++)
-            lofars[i].PushScanline(LofarLine(sources, phase.LOFARViews[i], 1024, i, rt.ScanIndex), phase.WaterfallPalette);
+        var lines = new List<float[]>(lofars.Count);
+        for (int i = 0; i < lofars.Count; i++) {
+            var line = LofarLine(sources, phase.LOFARViews[i], 1024, i, rt.ScanIndex);
+            lines.Add(line);
+            lofars[i].PushScanline(line, phase.WaterfallPalette);
+        }
+        LslService.Instance?.PublishScans(rt, bthLine, lines);
     }
 
     float[] BthLine(List<ActiveSignal> active, int n, long scanIndex) {

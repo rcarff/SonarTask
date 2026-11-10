@@ -5,6 +5,10 @@ using System.Linq;
 namespace SonarTask.Core {
 [Serializable]
 public sealed class ResultEvent {
+    [Newtonsoft.Json.JsonIgnore]
+    public double CaptureMonotonic = System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency;
+    [Newtonsoft.Json.JsonProperty("id", NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+    public string LslCommandId;
     public string TimeUtc = "";
     public float TotalElapsedTimeSec;
     public float ExpElapsedTimeSec;

@@ -75,6 +75,20 @@ All three switches can be set in ExperimentSettings and overridden per phase. Ye
 
 `LoFarJitterFactor` and `LoFarBackgroundNoise` are optional numbers from 0 to 1. Each resolves from signal instance → phase signal-definition override → experiment signal definition → phase LOFAR value → ExperimentSettings LOFAR value → resolved phase `JitterFactor` / `BackgroundNoise`. They affect only LOFAR; BTH retains its existing values. A LOFAR row uses the **maximum effective noise** among signals feeding that row; an empty row uses phase LOFAR noise. Live and reconstructed history use the same calculation and deterministic keys. Omitting these fields preserves existing rendering.
 
+## Optional LSL settings (FIXED37)
+
+Add these experiment-level fields inside `ExperimentSettings`; they are not phase overrides:
+
+```json
+"LslEnabled": "No",
+"LslStateRateHz": 30,
+"LslWaterfallStreams": "Yes",
+"LslWaterfallBins": 1024,
+"LslAllowExternalAlerts": "Yes"
+```
+
+Omitting/nulling fields uses these defaults. State rate is clamped to 1–250 Hz; waterfall bins must be 256, 512 or 1024. The optional streams capture the displayed live intensities, so LOFAR changes with BTH selection. External alerts require a running phase with AlertsEnabled=Yes; set LslAllowExternalAlerts=No to disallow them across the experiment. Operators can force LSL on/off per machine, but cannot bypass the external-alert setting. See [LSL.md](LSL.md) for formats and [LslDemo](../Experiments/LslDemo/experiment.json) for a complete package. Existing packages remain valid with LSL disabled.
+
 ## Shared Sounds library
 
 Audio references (`AudioFile` and `BackgroundAudio`) first load the package-relative file. When absent, a flat `name.wav` or `Sounds/name.wav` falls back to the common Sounds library; the `Sounds/` prefix is case-insensitive. Nested paths, `..`, separators and invalid filename characters are rejected for common lookup. Only `.wav` and `.mp3` are shared. Images and instructions remain package-relative.

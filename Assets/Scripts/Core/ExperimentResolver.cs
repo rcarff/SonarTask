@@ -9,6 +9,12 @@ public static class ExperimentResolver {
         if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
 
         var result = new ResolvedExperiment { Source = definition, ShowResultsAtEnd = definition.ExperimentSettings.ShowResultsAtEnd };
+        var lsl = definition.ExperimentSettings;
+        result.LslEnabled = lsl.LslEnabled == YesNo.Yes;
+        result.LslWaterfallStreams = (lsl.LslWaterfallStreams ?? YesNo.Yes) == YesNo.Yes;
+        result.LslAllowExternalAlerts = (lsl.LslAllowExternalAlerts ?? YesNo.Yes) == YesNo.Yes;
+        result.LslStateRateHz = Math.Max(1, Math.Min(250, lsl.LslStateRateHz ?? 30));
+        result.LslWaterfallBins = lsl.LslWaterfallBins ?? 1024;
         int autoId = 1;
 
         for (int phaseIndex = 0; phaseIndex < definition.ExperimentSettings.PhaseOrder.Count; phaseIndex++) {
@@ -170,6 +176,8 @@ public static class ExperimentValidator {
         if (string.IsNullOrWhiteSpace(d.Name)) errors.Add("Name is required.");
         if (d.ExperimentSettings == null) { errors.Add("ExperimentSettings is required."); return errors; }
         var defaults = d.ExperimentSettings;
+        if (defaults.LslStateRateHz.HasValue && (float.IsNaN(defaults.LslStateRateHz.Value) || float.IsInfinity(defaults.LslStateRateHz.Value))) errors.Add("LslStateRateHz must be finite (clamped to 1–250 Hz).");
+        if (defaults.LslWaterfallBins.HasValue && defaults.LslWaterfallBins != 256 && defaults.LslWaterfallBins != 512 && defaults.LslWaterfallBins != 1024) errors.Add("LslWaterfallBins must be 256, 512 or 1024.");
         ValidateLofarNoise(defaults.LoFarJitterFactor, defaults.LoFarBackgroundNoise, "ExperimentSettings", errors);
         defaults.SignalDefinitions ??= new Dictionary<string, SignalDefinition>();
         defaults.PhaseOrder ??= new List<string>();

@@ -4,7 +4,7 @@
       Id="IHMC.SonarTask"
       Name="Sonar Task"
       Manufacturer="IHMC"
-      Version="0.1.0"
+      Version="0.1.1"
       Scope="perMachine">
 
     <!-- Application icon -->

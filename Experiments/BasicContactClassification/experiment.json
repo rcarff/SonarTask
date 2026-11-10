@@ -4,6 +4,7 @@
   "Version": "1.0",
   "InstructionsFile": "instructions.md",
   "ExperimentSettings": {
+    "LslEnabled": "No",
     "PhaseOrder": [
       "Training",
       "Test"

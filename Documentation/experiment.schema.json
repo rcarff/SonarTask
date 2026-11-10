@@ -654,6 +654,60 @@
               "type": "number",
               "minimum": 0,
               "maximum": 1
+            },
+            "LslEnabled": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/yesNo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "No"
+            },
+            "LslWaterfallStreams": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/yesNo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "Yes"
+            },
+            "LslAllowExternalAlerts": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/yesNo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "Yes"
+            },
+            "LslStateRateHz": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "default": 30,
+              "description": "Clamped to 1\u2013250 Hz at runtime."
+            },
+            "LslWaterfallBins": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "enum": [
+                256,
+                512,
+                1024,
+                null
+              ],
+              "default": 1024
             }
           }
         }

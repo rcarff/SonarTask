@@ -12,6 +12,11 @@ UserSettings/
 *.sln
 *.user
 Assets/StreamingAssets/SonarTaskSeed/*
+!Assets/StreamingAssets/SonarTaskSeed/Experiments/
+Assets/StreamingAssets/SonarTaskSeed/Experiments/*
+!Assets/StreamingAssets/SonarTaskSeed/Experiments/LslDemo/
+!Assets/StreamingAssets/SonarTaskSeed/Experiments/LslDemo/**
+!Assets/StreamingAssets/SonarTaskSeed/Experiments/LslDemo.meta
 Server/Deploy/Results/*
 Server/Deploy/Config/*
 Server/Deploy/WebBuild
@@ -21,3 +26,5 @@ Experiments/*
 !Experiments/MultiBandOverlap
 !Experiments/VesselScenario
 !Experiments/VesselScenario-CB
+!Experiments/LslDemo
+Tools/LslBridge/__pycache__/

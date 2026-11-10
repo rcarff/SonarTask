@@ -12,6 +12,9 @@ using UnityEngine.Networking;
 namespace SonarTask.Services {
 [Serializable]
 public sealed class RunMetadata {
+    public bool LslEnabled;
+    public string LslMode = "Off";
+    public string LslSourceId = "";
     public int ResultSchemaVersion = 3;
     public string RunId = "";
     public string SubjectId = "";
@@ -97,6 +100,12 @@ public sealed class ResultRecorder : MonoBehaviour {
             SequenceCount = AppState.ExternalStudyActive ? AppState.ExternalExperimentSequence.Count : 0,
             ExternalTestMode = AppState.ExternalStudyActive && AppState.ExternalTestMode
         };
+        TryLsl(() => LslService.Ensure().Configure(AppState.ResolvedExperiment ?? ExperimentResolver.Resolve(definition), Metadata));
+        var callback = done;
+        done = (ok, error) => {
+            if (ok) TryLsl(() => LslService.Instance?.BeginRun(Metadata));
+            callback(ok, error);
+        };
         if (AppState.IsLocalWebDevelopment) {
             IsReady = true;
             Debug.Log("SONAR local WebGL development run started. Result events remain in browser memory and are not sent to the production API.");
@@ -159,6 +168,7 @@ public sealed class ResultRecorder : MonoBehaviour {
             pending.Enqueue(new PendingEvent { Event = e, Sequence = sequence });
             if (sender == null) sender = StartCoroutine(SendLoop());
         } else writer.WriteLine(ToCsv(e));
+        TryLsl(() => LslService.Instance?.PublishEvent(e, sequence));
     }
 
     IEnumerator SendLoop() {
@@ -191,6 +201,7 @@ public sealed class ResultRecorder : MonoBehaviour {
         Metadata.TerminationReason = reason;
         Metadata.EndedUtc = DateTime.UtcNow.ToString("O");
         finishPending = true;
+        TryLsl(() => LslService.Instance?.EndRun(completed, reason));
         if (heartbeat != null) StopCoroutine(heartbeat);
 
         if (AppState.IsLocalWebDevelopment) {
@@ -241,6 +252,11 @@ public sealed class ResultRecorder : MonoBehaviour {
     }
 
     void WriteMeta() => File.WriteAllText(metaPath, JsonConvert.SerializeObject(Metadata, Formatting.Indented), new UTF8Encoding(false));
+
+    static void TryLsl(Action action) {
+        try { action(); }
+        catch (Exception e) { Debug.LogWarning("LSL unavailable; result recording continues: " + e.Message); }
+    }
 
     static UnityWebRequest JsonRequest(string url, string method, string json) {
         var request = new UnityWebRequest(url, method);
