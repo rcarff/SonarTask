@@ -94,3 +94,34 @@ Omitting/nulling fields uses these defaults. State rate is clamped to 1–250 Hz
 Audio references (`AudioFile` and `BackgroundAudio`) first load the package-relative file. When absent, a flat `name.wav` or `Sounds/name.wav` falls back to the common Sounds library; the `Sounds/` prefix is case-insensitive. Nested paths, `..`, separators and invalid filename characters are rejected for common lookup. Only `.wav` and `.mp3` are shared. Images and instructions remain package-relative.
 
 The common directory is `<project>/Sounds` in Editor/local Web development, `DataRoot/Sounds` in desktop players and `/data/sounds` on the server (`Server/Deploy/Sounds` on the host). Desktop builds seed missing common files even for initialized installs. Local Web builds copy sounds and generate a read-only manifest. Web Settings > Common Audio Files lists names and sizes, uploads files up to 64 MiB, and deletes unused files. Duplicate names return 409. Deletion of a referenced common file returns 409 listing referencing packages; package-local files shadow the common file.
+
+## Images and videos in instructions
+
+Images and videos use the Markdown image line, on a line by itself, with an optional attribute block. The file extension selects the media type: `.mp4`, `.m4v`, `.webm` and `.mov` are videos; anything else is loaded as an image.
+
+```markdown
+![Layout](Images/layout.png)
+![Layout](Images/layout.png){width=50% align=right}
+![Intro demo](Videos/intro.mp4){width=640 align=center}
+![Looping clip](Videos/contact.mp4){width=480 height=270 align=center autoplay loop muted nocontrols}
+```
+
+| Attribute | Applies to | Meaning |
+|---|---|---|
+| `width=640` / `width=640px` / `width=50%` | images, videos | Pixel width or percentage of the instruction column. Capped at the column width. Default: full column width. |
+| `height=360` | images, videos | Pixel height. If only one dimension is given the other follows the media aspect ratio. If both are given the box is used as-is and the media is letterboxed inside it. |
+| `align=left` / `center` / `right` | images, videos | Horizontal placement within the column. Default `left`. |
+| `autoplay` | videos | Start playing when the instructions open. |
+| `loop` | videos | Repeat at the end. |
+| `muted` | videos | Play without audio. |
+| `nocontrols` | videos | Hide the Play/Pause button, seek bar and time readout. Clicking the video still toggles playback. |
+
+Without attributes, images keep their previous behavior: full width with the original aspect ratio. Media stay in the document flow, so they never overlap text, and the scroll height always includes them. Unknown or invalid attributes are ignored, and a warning is logged.
+
+Video guidance:
+
+- Use **H.264 video and AAC audio in `.mp4`**. It is the only combination that plays on Windows, macOS and every supported browser. `.webm` (VP8/VP9) does not play in Safari, and `.mov` support depends on the platform.
+- Browsers usually block autoplay *with sound* until the participant has interacted with the page. For reliable autoplay on Web, add `muted`. If autoplay is blocked, the video waits with its Play control showing.
+- Keep the package ZIP under the 64 MiB upload limit. Prefer short, compressed clips (for example 720p at about 1–2 Mbit/s). Put videos in a `Videos/` folder by convention; paths must be package-relative.
+- Playback happens only while the instructions are visible. Closing the instructions stops the video. Video playback is not part of the deterministic simulation.
+- When videos play in the in-task instructions overlay, `Video_Played`, `Video_Paused`, `Video_Seeked` and `Video_Ended` events are recorded. See [RESULT_FORMAT.md](RESULT_FORMAT.md).

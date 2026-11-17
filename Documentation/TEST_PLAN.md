@@ -148,6 +148,17 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 - Remove a result CSV and confirm the result list hides it while SQLite metadata remains. Confirm the 5000 limit applies after missing-file filtering.
 - Build and Run local Web: shared audio plays and lists read only. Build desktop: already initialized data roots receive missing bundled sounds without overwriting existing sounds.
 
+## Instruction media (FIXED38)
+
+- Plain `![alt](Images/x.png)` renders unchanged: full width, aspect preserved, scrolls fully when it is the last item.
+- Image `{width=50% align=right}`, `{width=300 align=center}` and `{height=200}` render at the expected size and placement. Resize the WebGL browser window and confirm the percentage widths re-fit.
+- Video `.mp4` renders at the authored size, alignment and letterboxing. Play/Pause shows both an icon and a text label. Check that the seek bar and time readout work, and that clicking the video toggles playback.
+- `autoplay muted loop` plays immediately and loops. `nocontrols` hides the bar. In a browser, autoplay *with* sound may be blocked and must then wait for Play.
+- Closing the instructions overlay, or leaving the Instructions scene, stops the video and its audio.
+- Missing, invalid or traversal video/image paths show `[Video unavailable: …]` / `[Image unavailable: …]` without breaking the layout.
+- In-task overlay: play, pause, seek and finish a video. Check that the CSV contains Video_Played/Paused/Seeked/Ended with the path in Alert_Type and the position in Alert_Text. The pre-task Instructions scene records nothing.
+- Repeat on Editor/desktop (file://), Local Web Build and Run, and the deployed server. On the server, `curl -k -I -H "Range: bytes=0-99"` against an `.mp4` asset with a session cookie returns `206` and `Content-Type: video/mp4`, and seeking works in Chrome, Firefox and Safari.
+
 ## LSL (FIXED37)
 
 - Run SONAR > Validate LSL Integration (or batch execute SonarTask.EditorTools.SonarLslValidation.Validate). It includes package validation, determinism, resolution/defaults, fixed channel counts/downsampling/NaN padding, marker context/sequence/abort/second-run checks, CSV compatibility and native marker round trip.

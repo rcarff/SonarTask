@@ -9,8 +9,10 @@ namespace SonarTask.UI
 {
     /// <summary>
     /// Small Markdown renderer used by experiment instructions.
-    /// Supports headings, paragraphs, emphasis, lists, rules, quotes and local images.
-    /// Images participate in the normal VerticalLayoutGroup so they cannot overlap
+    /// Supports headings, paragraphs, emphasis, lists, rules, quotes, local images and videos.
+    /// Media lines use <c>![alt](path){width=50% height=360 align=center autoplay loop muted nocontrols}</c>;
+    /// the attribute block is optional and the file extension selects image vs video.
+    /// Media participate in the normal VerticalLayoutGroup so they cannot overlap
     /// following content and the ScrollRect content height always includes them.
     /// Consecutive list items are grouped with compact spacing so Markdown lists read
     /// like lists rather than a collection of widely separated paragraphs.
@@ -22,6 +24,9 @@ namespace SonarTask.UI
         bool lastWasSpacer;
         Transform listContainer;
         bool listIsOrdered;
+
+        /// <summary>Instruction video playback events: (eventType, packageRelativePath, positionSec).</summary>
+        public event System.Action<string, string, double> VideoEvent;
 
         public void Render(string packageName, string markdown)
         {
@@ -73,10 +78,15 @@ namespace SonarTask.UI
 
                 EndList();
 
-                var image = Regex.Match(line.Trim(), @"^!\[(.*?)\]\((.*?)\)$");
-                if (image.Success)
+                var media = Regex.Match(line.Trim(), @"^!\[(.*?)\]\((.*?)\)(?:\s*\{(.*?)\})?$");
+                if (media.Success)
                 {
-                    AddImagePlaceholder(image.Groups[2].Value, image.Groups[1].Value);
+                    string mediaPath = media.Groups[2].Value.Trim();
+                    var attrs = MediaAttrs.Parse(media.Groups[3].Value, mediaPath);
+                    if (MediaAttrs.IsVideo(mediaPath))
+                        AddVideo(mediaPath, media.Groups[1].Value, attrs);
+                    else
+                        AddImage(mediaPath, media.Groups[1].Value, attrs);
                     hasContent = true;
                     lastWasSpacer = false;
                     continue;
@@ -199,42 +209,71 @@ namespace SonarTask.UI
             le.flexibleHeight = 0;
         }
 
-        void AddImagePlaceholder(string relativePath, string altText)
+        /// <summary>
+        /// Full-width row whose HorizontalLayoutGroup applies the authored alignment, containing a
+        /// sized media box. MediaFit keeps the box sized from attributes and aspect ratio.
+        /// </summary>
+        RectTransform MediaRow(string name, MediaAttrs attrs, float extraHeight, out MediaFit fit)
         {
-            var holder = UIFactory.GO("Image:" + altText, transform);
-            var rect = (RectTransform)holder.transform;
-            var layout = holder.AddComponent<LayoutElement>();
-            layout.minHeight = 80;
-            layout.preferredHeight = 240;
-            layout.flexibleHeight = 0;
+            var row = UIFactory.GO(name, transform);
+            var h = row.AddComponent<HorizontalLayoutGroup>();
+            h.padding = new RectOffset(0, 0, 0, 0);
+            h.childAlignment = attrs.Align;
+            h.childControlWidth = true; h.childControlHeight = true;
+            h.childForceExpandWidth = false; h.childForceExpandHeight = false;
 
-            var raw = holder.AddComponent<RawImage>();
+            var box = UIFactory.GO("Box", row.transform);
+            var le = box.AddComponent<LayoutElement>();
+            le.minHeight = le.preferredHeight = 240;
+            le.flexibleHeight = 0;
+            le.flexibleWidth = 1;
+
+            fit = row.AddComponent<MediaFit>();
+            fit.Attrs = attrs;
+            fit.Box = le;
+            fit.ExtraHeight = extraHeight;
+            fit.Rebuild = RebuildLayout;
+            return (RectTransform)box.transform;
+        }
+
+        void AddImage(string relativePath, string altText, MediaAttrs attrs)
+        {
+            var box = MediaRow("Image:" + altText, attrs, 0f, out var fit);
+            var frame = UIFactory.GO("Frame", box);
+            var raw = frame.AddComponent<RawImage>();
             raw.color = Color.white;
             raw.raycastTarget = false;
             raw.texture = Texture2D.blackTexture;
             raw.uvRect = new Rect(0, 0, 1, 1);
+            var aspect = frame.AddComponent<AspectRatioFitter>();
+            aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            aspect.aspectRatio = fit.Aspect;
 
-            StartCoroutine(LoadImage(relativePath, altText, rect, layout, raw));
+            StartCoroutine(LoadImage(relativePath, altText, box, fit, raw, aspect));
         }
 
-        IEnumerator LoadImage(string relativePath, string altText, RectTransform holder,
-            LayoutElement layout, RawImage raw)
+        IEnumerator LoadImage(string relativePath, string altText, RectTransform box,
+            MediaFit fit, RawImage raw, AspectRatioFitter aspectFitter)
         {
-            using var request = UnityWebRequestTexture.GetTexture(
-                RepositoryFactory.Experiments.AssetUrl(package, relativePath));
+            string url = null;
+            try { url = RepositoryFactory.Experiments.AssetUrl(package, relativePath); }
+            catch (System.Exception e) { Debug.LogWarning($"Instruction image '{relativePath}': {e.Message}"); }
+
+            if (url == null)
+            {
+                ShowMediaFailure("[Image unavailable: " + altText + "]", box, fit, raw);
+                yield break;
+            }
+
+            using var request = UnityWebRequestTexture.GetTexture(url);
             yield return request.SendWebRequest();
 
-            if (!holder)
+            if (!box)
                 yield break;
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                raw.color = Color.clear;
-                var message = UIFactory.Text("[Image unavailable: " + altText + "]",
-                    holder, 15, TextAnchor.MiddleCenter);
-                message.color = new Color(.9f, .65f, .65f, 1f);
-                layout.preferredHeight = 48;
-                RebuildLayout();
+                ShowMediaFailure("[Image unavailable: " + altText + "]", box, fit, raw);
                 yield break;
             }
 
@@ -242,24 +281,39 @@ namespace SonarTask.UI
             raw.texture = tex;
             raw.color = Color.white;
 
-            // Wait until the VerticalLayoutGroup has assigned the image its real width.
-            yield return null;
-            Canvas.ForceUpdateCanvases();
-
-            float width = holder.rect.width;
-            if (width <= 1f && holder.parent is RectTransform parentRect)
-                width = Mathf.Max(1f, parentRect.rect.width - 24f);
-
+            // MediaFit sizes the box from the authored attributes, this aspect ratio and the
+            // real column width, so the ScrollRect's ContentSizeFitter includes the full image.
             float aspect = tex.width / (float)Mathf.Max(1, tex.height);
-            float imageHeight = width / Mathf.Max(.01f, aspect);
+            aspectFitter.aspectRatio = aspect;
+            fit.SetAspect(aspect);
+        }
 
-            // Give the layout system the real image height. The ScrollRect's
-            // ContentSizeFitter then includes the complete image, including a final image.
-            layout.minHeight = imageHeight;
-            layout.preferredHeight = imageHeight;
-            layout.flexibleHeight = 0;
+        static void ShowMediaFailure(string text, RectTransform box, MediaFit fit, RawImage raw)
+        {
+            if (raw) raw.color = Color.clear;
+            var message = UIFactory.Text(text, box, 15, TextAnchor.MiddleCenter);
+            message.color = new Color(.9f, .65f, .65f, 1f);
+            fit.Fail(48f);
+        }
 
-            RebuildLayout();
+        void AddVideo(string relativePath, string altText, MediaAttrs attrs)
+        {
+            float extra = attrs.Controls ? InstructionVideo.ControlBarHeight : 0f;
+            var box = MediaRow("Video:" + altText, attrs, extra, out var fit);
+
+            string url = null;
+            try { url = RepositoryFactory.Experiments.AssetUrl(package, relativePath); }
+            catch (System.Exception e) { Debug.LogWarning($"Instruction video '{relativePath}': {e.Message}"); }
+
+            if (url == null)
+            {
+                ShowMediaFailure("[Video unavailable: " + altText + "]", box, fit, null);
+                return;
+            }
+
+            var video = box.gameObject.AddComponent<InstructionVideo>();
+            video.VideoEvent += (type, path, position) => VideoEvent?.Invoke(type, path, position);
+            video.Init(url, relativePath, altText, attrs, fit);
         }
 
         IEnumerator RebuildNextFrame()

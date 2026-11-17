@@ -473,7 +473,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         InstructionsOverlay.Show(Manager.Root,AppState.SelectedPackage,phase.InstructionsFile,()=>{
             instructionsOpen=false; recorder.Record(ResultEvent.Create(rt,"Instructions_Closed")); startPause.interactable=rt.State!=RunState.Ended; RefreshPhaseControls();
             if(automatic && phase.AutoStart==YesNo.Yes)StartPause();
-        });
+        },(type,path,position)=>{ var e=ResultEvent.Create(rt,type); e.Alert_Type=path; e.Alert_Text=position.ToString("F3",System.Globalization.CultureInfo.InvariantCulture); recorder.Record(e); });
     }
 
     void StartPause() {

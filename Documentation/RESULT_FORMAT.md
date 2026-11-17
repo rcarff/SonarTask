@@ -39,6 +39,17 @@ External-study metadata JSON now includes `ExternalTestMode`. It is `true` only 
 
 `Instructions_Opened` and `Instructions_Closed` record in-experiment instruction overlay viewing, including automatic phase instruction prompts. They use the current phase and runtime clocks. No CSV columns were added; the header is unchanged. Viewing instructions before the task scene through the external-study Instructions scene does not create these run events.
 
+## Instruction video events (FIXED38)
+
+The CSV header is unchanged. Videos played in the in-experiment instruction overlay record:
+
+- `Video_Played`: playback actually started, either from autoplay or the Play control. An autoplay that the browser blocks records nothing.
+- `Video_Paused`: the participant paused.
+- `Video_Seeked`: the participant moved the seek bar. The position is the seek target.
+- `Video_Ended`: playback reached the end of the clip. Looping videos record this once per loop.
+
+`Alert_Type` holds the package-relative video path, and `Alert_Text` holds the playback position in seconds (invariant culture, three decimals). The phase and clock columns use the current runtime clocks, as `Instructions_Opened` does. Closing the overlay while a video plays is captured by `Instructions_Closed`, and no separate video event is written. The pre-task Instructions scene has no run, so it records no video events. Like all CSV events, these rows are mirrored to the LSL marker stream.
+
 ## LSL events and metadata (FIXED37)
 
 The CSV header remains unchanged. New event types:

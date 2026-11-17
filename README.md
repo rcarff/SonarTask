@@ -170,10 +170,11 @@ Experiments/MyExperiment/
 ├─ experiment.json
 ├─ instructions.md
 ├─ Images/
+├─ Videos/
 └─ Sounds/
 ```
 
-Instruction files use a deliberately small Markdown subset: headings, paragraphs, bold/italic, numbered/bulleted lists, block quotes, horizontal rules and local images. The same renderer is used on native and Web builds, avoiding an embedded native browser dependency.
+Instruction files use a deliberately small Markdown subset: headings, paragraphs, bold/italic, numbered/bulleted lists, block quotes, horizontal rules, and local images and videos. Images and videos accept an optional size/placement block, such as `![Demo](Videos/demo.mp4){width=640 align=center autoplay muted}`. See [Documentation/EXPERIMENT_AUTHORING.md](Documentation/EXPERIMENT_AUTHORING.md#images-and-videos-in-instructions). Use H.264/AAC `.mp4` for videos. The same renderer is used on native and Web builds, avoiding an embedded native browser dependency.
 
 Asset references are package-relative. Audio also falls back to the shared Sounds library when the package file is missing. Path traversal and absolute/external paths are rejected by the server.
 
@@ -559,7 +560,7 @@ Use **SONAR > Build > Web Local Test (Build and Run)** for the simplest path. Un
 
 ### Markdown instruction layout
 
-The built-in instruction renderer supports formatted text, headings, lists, local images, rules, and block quotes. Images are sized to the available instruction width while preserving aspect ratio, participate in ScrollRect layout, and may be fully scrolled even when they are the final item. Headings include top spacing similar to conventional Markdown previews. Consecutive numbered and bulleted list items are grouped with compact spacing instead of using normal paragraph spacing between every item.
+The built-in instruction renderer supports formatted text, headings, lists, local images and videos, rules, and block quotes. By default, images are sized to the available instruction width while preserving aspect ratio. An optional `{width=… height=… align=…}` block overrides size and placement, and videos also accept `autoplay loop muted nocontrols`. Images and videos participate in ScrollRect layout, and may be fully scrolled even when they are the final item. Headings include top spacing similar to conventional Markdown previews. Consecutive numbered and bulleted list items are grouped with compact spacing instead of using normal paragraph spacing between every item.
 
 ## fixed28 interaction/settings update
 

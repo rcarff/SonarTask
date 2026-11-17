@@ -176,7 +176,8 @@ app.MapGet("/experiments/{package}/assets/{**asset}", async (HttpContext c, stri
     if (!await CanAccessPackage(c, dbFile, package)) return Results.Forbid();
     var f = SafeExperimentFile(experimentRoot, package, asset);
     if(!File.Exists(f) && CommonSoundFiles.IsAudio(asset)){try{f=CommonSoundFiles.SafeFile(soundsRoot,asset);}catch(ArgumentException){return Results.NotFound();}}
-    return File.Exists(f) ? Results.File(f, ContentType(f)) : Results.NotFound();
+    // Range processing lets browser <video>/<audio> elements seek within large assets.
+    return File.Exists(f) ? Results.File(f, ContentType(f), enableRangeProcessing: true) : Results.NotFound();
 }).RequireAuthorization();
 
 app.MapGet("/sounds/{name}", (string name) => {
@@ -764,7 +765,8 @@ static string SafeExperimentFile(string root, string package, string rel)
 static string SafeResultFile(string root, string name) => Path.Combine(root, Path.GetFileName(name));
 static string ContentType(string f) => Path.GetExtension(f).ToLowerInvariant() switch
 {
-    ".json" => "application/json", ".md" => "text/markdown; charset=utf-8", ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".wav" => "audio/wav", ".mp3" => "audio/mpeg", _ => "application/octet-stream"
+    ".json" => "application/json", ".md" => "text/markdown; charset=utf-8", ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".wav" => "audio/wav", ".mp3" => "audio/mpeg",
+    ".gif" => "image/gif", ".mp4" or ".m4v" => "video/mp4", ".webm" => "video/webm", ".mov" => "video/quicktime", _ => "application/octet-stream"
 };
 
 static IResult ZipFiles(string[] files, string download)
