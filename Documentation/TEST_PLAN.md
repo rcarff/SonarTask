@@ -183,3 +183,11 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 - The first phase with a countdown starts without pressing Start.
 - `AutoStartCountdownSec` 0/omitted behaves exactly as before. AutoStart No with a countdown set shows no countdown. Negative or > 3600 values are rejected by Validate All and by Web upload.
 - Repeat in a Web Local Test build to confirm the banner renders in WebGL.
+
+## Score reset and phase results (FIXED40)
+
+- In a multi-phase experiment with `ResetScoreWhenPhaseStarts` omitted, classify some signals in phase 1. When phase 2 begins (both AutoStart and auto-pause boundaries), the feedback tally shows 0/0/0.
+- Set `ResetScoreWhenPhaseStarts` to `No` on phase 2 only: the tally carries phase 1's counts into phase 2. Set it to `No` in `ExperimentSettings` and `Yes` on one phase: only that phase resets.
+- With `ShowResultsAtEnd` Yes, complete the experiment. The popup lists one `Phase Results` line per phase that matches the tally shown at the end of that phase, plus that phase's signal count, then `Overall Results` matching the sum of all classifications in the CSV. A single-phase experiment shows only the original `Results` block.
+- Check that the popup text fits on screen with 5+ phases on desktop and in a Web Local Test build.
+- An invalid value (for example `"Maybe"`) is rejected by Validate All and by Web upload.

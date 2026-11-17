@@ -507,6 +507,11 @@
         "AutoShowInstructions": {
           "$ref": "#/$defs/yesNo"
         },
+        "ResetScoreWhenPhaseStarts": {
+          "$ref": "#/$defs/yesNo",
+          "default": "Yes",
+          "description": "Reset the Correct/Partial/Incorrect tally shown in the feedback section when this phase starts. Default Yes."
+        },
         "LoFarJitterFactor": {
           "type": "number",
           "minimum": 0,
@@ -657,6 +662,11 @@
             },
             "AutoShowInstructions": {
               "$ref": "#/$defs/yesNo"
+            },
+            "ResetScoreWhenPhaseStarts": {
+              "$ref": "#/$defs/yesNo",
+              "default": "Yes",
+              "description": "Reset the Correct/Partial/Incorrect tally shown in the feedback section when this phase starts. Default Yes."
             },
             "LoFarJitterFactor": {
               "type": "number",
@@ -855,6 +865,11 @@
             },
             "AutoShowInstructions": {
               "$ref": "#/$defs/yesNo"
+            },
+            "ResetScoreWhenPhaseStarts": {
+              "$ref": "#/$defs/yesNo",
+              "default": "Yes",
+              "description": "Reset the Correct/Partial/Incorrect tally shown in the feedback section when this phase starts. Default Yes."
             },
             "LoFarJitterFactor": {
               "type": "number",

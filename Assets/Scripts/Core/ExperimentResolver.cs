@@ -27,6 +27,7 @@ public static class ExperimentResolver {
                 DeselectBTHSignalAfterClassification = (source.DeselectBTHSignalAfterClassification ?? defaults.DeselectBTHSignalAfterClassification) == YesNo.Yes,
                 DisablePauseAndExit = (source.DisablePauseAndExit ?? defaults.DisablePauseAndExit) == YesNo.Yes,
                 AutoShowInstructions = (source.AutoShowInstructions ?? defaults.AutoShowInstructions) == YesNo.Yes,
+                ResetScoreWhenPhaseStarts = (source.ResetScoreWhenPhaseStarts ?? defaults.ResetScoreWhenPhaseStarts) == YesNo.Yes,
                 InstructionsFile = source.InstructionsFile ?? definition.InstructionsFile ?? "instructions.md",
                 LoFarJitterFactor = source.LoFarJitterFactor ?? defaults.LoFarJitterFactor ?? source.JitterFactor ?? defaults.JitterFactor,
                 LoFarBackgroundNoise = source.LoFarBackgroundNoise ?? defaults.LoFarBackgroundNoise ?? source.BackgroundNoise ?? defaults.BackgroundNoise,

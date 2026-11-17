@@ -426,7 +426,9 @@ The archive does not include Unity's generated `Library/`, `Temp/`, `Logs/`, IDE
 
 ### End-of-experiment results
 
-`ExperimentSettings.ShowResultsAtEnd` controls whether the mandatory completion popup also displays Correct, Partial, Incorrect percentages/counts, Responses, and Signals. `Responses` is the number of completed classification responses; `Signals` is the total number of actual signals presented in the BTH. The default is `No`.
+`ExperimentSettings.ShowResultsAtEnd` controls whether the mandatory completion popup also displays Correct, Partial, Incorrect percentages/counts, Responses, and Signals. `Responses` is the number of completed classification responses; `Signals` is the total number of actual signals presented in the BTH. The default is `No`. For multi-phase experiments the popup also lists each phase's tally as it was displayed at the end of that phase, followed by the overall totals.
+
+`ResetScoreWhenPhaseStarts` (experiment setting, overridable per phase, default `Yes`) resets the feedback-section tally to 0 when a phase starts. Set it to `No` to carry the tally over from the previous phase. It affects only the on-screen tally, not the recorded results.
 
 ## Editable Unity scene layouts
 

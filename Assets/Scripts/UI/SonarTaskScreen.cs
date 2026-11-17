@@ -37,7 +37,10 @@ public sealed class SonarTaskScreen : SonarScreen {
     string selectedClass;
     string trainingClassification;
     ClassCorrectness selectedCorrect;
+    // Overall totals for the run, and the tally shown in the feedback section (reset per ResetScoreWhenPhaseStarts).
     int correct, incorrect, partial, signalsStartedTotal;
+    int shownCorrect, shownIncorrect, shownPartial, phaseSignals, configuredPhaseIndex = -1;
+    readonly List<PhaseScore> phaseScores = new();
     readonly List<ActiveAlertLine> alerts = new();
     float scanAccumulator;
     string definitionJson;
@@ -45,6 +48,7 @@ public sealed class SonarTaskScreen : SonarScreen {
     Image lslShape;
 
     sealed class ActiveAlertLine { public ResolvedAlert alert; public float expires; }
+    sealed class PhaseScore { public string name; public int correct, partial, incorrect, signals; }
 
     public override void Build(ScreenManager m) {
         base.Build(m);
@@ -302,6 +306,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         rt.PhaseTransition += OnTransition;
         rt.SignalStarted += s => {
             signalsStartedTotal++;
+            phaseSignals++;
             var e = ResultEvent.Create(rt, "Signal_Start");
             e.Signal_Type = s.SignalType;
             e.Signal_ID = s.ID;
@@ -409,6 +414,11 @@ public sealed class SonarTaskScreen : SonarScreen {
 
     void ConfigurePhase() {
         phase = rt.Phase;
+        if (phase.Index != configuredPhaseIndex) {
+            configuredPhaseIndex = phase.Index;
+            phaseSignals = 0;
+            if (phase.ResetScoreWhenPhaseStarts) shownCorrect = shownPartial = shownIncorrect = 0;
+        }
         BuildDisplays();
         BuildRight();
         audioService.SetBackground(AppState.SelectedPackage, phase.BackgroundAudio, phase.BackgroundAudioVolume, rt.State == RunState.Running);
@@ -429,6 +439,8 @@ public sealed class SonarTaskScreen : SonarScreen {
             _ => "EXP_Ended"
         };
         recorder.Record(ResultEvent.Create(rt, et));
+        // The runtime has already advanced PhaseIndex; `phase` is still the phase that just ended.
+        if (r == PhaseTransitionReason.End || rt.PhaseIndex != phase.Index) RecordPhaseScore();
         if (r == PhaseTransitionReason.Start || r == PhaseTransitionReason.Resume || r == PhaseTransitionReason.End) CancelCountdown();
         if (r == PhaseTransitionReason.Start || r == PhaseTransitionReason.AutoPause) LslService.Instance?.Axes(rt);
         if (r == PhaseTransitionReason.End) {
@@ -848,9 +860,9 @@ public sealed class SonarTaskScreen : SonarScreen {
             : "NONE";
         recorder.Record(e);
 
-        if (selectedCorrect == ClassCorrectness.YES) correct++;
-        else if (selectedCorrect == ClassCorrectness.PARTIAL) partial++;
-        else incorrect++;
+        if (selectedCorrect == ClassCorrectness.YES) { correct++; shownCorrect++; }
+        else if (selectedCorrect == ClassCorrectness.PARTIAL) { partial++; shownPartial++; }
+        else { incorrect++; shownIncorrect++; }
         if (phase.FeedbackEnabled == YesNo.Yes) StartCoroutine(FeedbackFlash(selectedCorrect));
         UpdateTally();
 
@@ -993,14 +1005,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         endPopupShown = true;
 
         string message = "The assigned study sequence is complete.";
-        if (AppState.ResolvedExperiment.ShowResultsAtEnd == YesNo.Yes) {
-            int responses = correct + partial + incorrect;
-            message += "\n\nResults"
-                + $"\nCorrect: {correct} ({Percent(correct, responses):0.0}%)"
-                + $"\nPartial: {partial} ({Percent(partial, responses):0.0}%)"
-                + $"\nIncorrect: {incorrect} ({Percent(incorrect, responses):0.0}%)"
-                + $"\nResponses: {responses}";
-        }
+        if (AppState.ResolvedExperiment.ShowResultsAtEnd == YesNo.Yes) message += ResultsText(false);
         if (!string.IsNullOrWhiteSpace(progress.assignmentGroup))
             message += "\n\nAssignment: " + progress.assignmentGroup;
         if (!string.IsNullOrWhiteSpace(progress.completionUrl))
@@ -1020,23 +1025,41 @@ public sealed class SonarTaskScreen : SonarScreen {
         endPopupShown = true;
 
         string message = "The experiment has ended.";
-        if (AppState.ResolvedExperiment.ShowResultsAtEnd == YesNo.Yes) {
-            int responses = correct + partial + incorrect;
-            message += "\n\nResults"
-                + $"\nCorrect: {correct} ({Percent(correct, responses):0.0}%)"
-                + $"\nPartial: {partial} ({Percent(partial, responses):0.0}%)"
-                + $"\nIncorrect: {incorrect} ({Percent(incorrect, responses):0.0}%)"
-                + $"\nResponses: {responses}"
-                + $"\nSignals: {signalsStartedTotal}";
-        }
+        if (AppState.ResolvedExperiment.ShowResultsAtEnd == YesNo.Yes) message += ResultsText(true);
 
         Modal.Show(Manager.Root, "Experiment Ended", message, () => Manager.Selection(), null, "OK");
     }
 
     static float Percent(int value, int total) => total <= 0 ? 0f : value * 100f / total;
 
+    // Snapshot of the feedback tally as displayed when the phase ended (cumulative if the phase did not reset it).
+    void RecordPhaseScore() {
+        if (phaseScores.Count > phase.Index) return;
+        phaseScores.Add(new PhaseScore { name = phase.Name, correct = shownCorrect, partial = shownPartial, incorrect = shownIncorrect, signals = phaseSignals });
+    }
+
+    string ResultsText(bool includeSignals) {
+        var sb = new System.Text.StringBuilder();
+        if (phaseScores.Count > 1) {
+            sb.Append("\n\nPhase Results");
+            foreach (var ps in phaseScores) {
+                int n = ps.correct + ps.partial + ps.incorrect;
+                sb.Append($"\n{ps.name}: Correct {ps.correct} ({Percent(ps.correct, n):0.0}%), Partial {ps.partial} ({Percent(ps.partial, n):0.0}%), Incorrect {ps.incorrect} ({Percent(ps.incorrect, n):0.0}%), Responses {n}");
+                if (includeSignals) sb.Append($", Signals {ps.signals}");
+            }
+        }
+        int responses = correct + partial + incorrect;
+        sb.Append(phaseScores.Count > 1 ? "\n\nOverall Results" : "\n\nResults")
+            .Append($"\nCorrect: {correct} ({Percent(correct, responses):0.0}%)")
+            .Append($"\nPartial: {partial} ({Percent(partial, responses):0.0}%)")
+            .Append($"\nIncorrect: {incorrect} ({Percent(incorrect, responses):0.0}%)")
+            .Append($"\nResponses: {responses}");
+        if (includeSignals) sb.Append($"\nSignals: {signalsStartedTotal}");
+        return sb.ToString();
+    }
+
     void UpdateTally() {
-        if (tallyText) tallyText.text = $"Correct: {correct}\nPartial: {partial}\nIncorrect: {incorrect}";
+        if (tallyText) tallyText.text = $"Correct: {shownCorrect}\nPartial: {shownPartial}\nIncorrect: {shownIncorrect}";
     }
 
     void ClearSelection(bool rebuildLofar = true) {

@@ -68,6 +68,12 @@ Each entry in a phase's `Signals` array is still a separate signal occurrence. E
 
 `ExperimentSettings.ShowResultsAtEnd` (`"Yes"`/`"No"`, default `"No"`) controls whether the mandatory experiment-end popup includes Correct/Partial/Incorrect totals and percentages, `Responses` (completed classification responses), and `Signals` (actual signals presented in the BTH).
 
+When the experiment has more than one phase, the popup first lists a `Phase Results` line for each phase, then the `Overall Results` for the whole run. Each phase line shows the tally exactly as the feedback section displayed it when that phase ended, plus the signals presented in that phase. If a phase sets `ResetScoreWhenPhaseStarts` to `No`, its line therefore includes the carried-over counts from earlier phases. The overall totals always count every response once.
+
+## ResetScoreWhenPhaseStarts
+
+`ResetScoreWhenPhaseStarts` (`"Yes"`/`"No"`, default `"Yes"`) can be set in `ExperimentSettings` and overridden per phase. When the resolved value for a phase is `Yes`, the Correct/Partial/Incorrect tally in the feedback section returns to 0 when that phase begins. When it is `No`, the tally keeps counting from the previous phase. It only changes what the subject sees: the CSV records every classification either way, and the end-of-experiment overall totals are unaffected. The first phase always starts at 0.
+
 ## Waterfall scan rate and history
 
 `WaterfallScanRateHz` changes the temporal resolution of BTH and LOFAR displays; it does not change the configured history duration. The renderer allocates approximately `(TimeEnd - TimeStart) * WaterfallScanRateHz` rows. Definitions requiring more than 4096 rows for any waterfall are rejected.
