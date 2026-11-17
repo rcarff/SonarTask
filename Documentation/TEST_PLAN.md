@@ -145,6 +145,8 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 - Reference a common WAV/MP3 by bare name and Sounds/name, and verify package-local precedence. Reject traversal/nested common names.
 - Unlock Web Settings: password/unlock controls disappear; expired elevation restores them for GET, POST, DELETE and browser uploads.
 - Common Audio Files: upload/list, duplicate 409, 64 MiB rejection, delete unused, block referenced with package list. Upload a package whose audio is common-only; accept it. Package-local shadowing permits deletion of the common file.
+- Settings downloads (FIXED41): Experiments > Download saves `<Package>.zip` containing one `<Package>/` folder with experiment.json, instructions and every Images/Sounds file; re-uploading that ZIP installs unchanged. Common Audio Files > Download saves the original file, including a name with spaces. Results > Download saves `<stem>.zip` containing the run's .csv, .meta.json and .experiment.json; Download Selected includes the same three files per selected run.
+- Common Audio Files Play/Pause: shows a triangle + "Play" or two bars + "Pause". Pause then Play resumes from the same point; playing another sound stops the first and resets its button; the button resets when the sound ends; leaving the view or deleting/uploading a sound stops playback. An undecodable file shows an error in the status line.
 - Remove a result CSV and confirm the result list hides it while SQLite metadata remains. Confirm the 5000 limit applies after missing-file filtering.
 - Build and Run local Web: shared audio plays and lists read only. Build desktop: already initialized data roots receive missing bundled sounds without overwriting existing sounds.
 

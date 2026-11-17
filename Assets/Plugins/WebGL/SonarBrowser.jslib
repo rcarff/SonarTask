@@ -45,6 +45,45 @@ mergeInto(LibraryManager.library, {
     var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:mime})); a.download=name; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
   },
   SonarOpenUrl: function(urlPtr) { window.open(UTF8ToString(urlPtr),'_blank'); },
+  // Same-origin download through an <a download> link: the session cookie is sent and no blank tab is left open.
+  SonarDownloadUrl: function(urlPtr, namePtr) {
+    var a = document.createElement('a');
+    a.href = UTF8ToString(urlPtr);
+    a.download = UTF8ToString(namePtr) || '';
+    a.style.display = 'none';
+    document.body.appendChild(a); a.click(); a.remove();
+  },
+  // Settings audio preview. One shared <audio> element; replies "PLAYING|key", "PAUSED|key", "ENDED|key" or "ERR|key|message".
+  SonarAudioPreviewPlay: function(goPtr, methodPtr, urlPtr, keyPtr) {
+    var go = UTF8ToString(goPtr), method = UTF8ToString(methodPtr), url = UTF8ToString(urlPtr), key = UTF8ToString(keyPtr);
+    var send = function(m) { try { SendMessage(go, method, m); } catch (e) {} };
+    var p = window.__sonarAudioPreview;
+    if (p && p.key !== key) { p.silent = true; try { p.audio.pause(); } catch (e) {} if (p.go && p.key) { try { SendMessage(p.go, p.method, 'PAUSED|' + p.key); } catch (e) {} } p = null; }
+    if (!p) {
+      var audio = new Audio();
+      audio.preload = 'auto';
+      p = window.__sonarAudioPreview = { audio: audio, key: key, go: go, method: method, silent: false };
+      audio.onplaying = function() { if (!p.silent) send('PLAYING|' + p.key); };
+      audio.onpause = function() { if (!p.silent && !audio.ended) send('PAUSED|' + p.key); };
+      audio.onended = function() { if (!p.silent) send('ENDED|' + p.key); };
+      audio.onerror = function() { if (!p.silent) send('ERR|' + p.key + '|The browser could not load or decode this audio file.'); };
+      audio.src = url;
+    }
+    p.go = go; p.method = method; p.silent = false;
+    var r = p.audio.play();
+    if (r && r.catch) r.catch(function(e) { if (!p.silent) send('ERR|' + p.key + '|' + (e && e.message ? e.message : 'Playback was blocked.')); });
+  },
+  SonarAudioPreviewPause: function() {
+    var p = window.__sonarAudioPreview;
+    if (p) try { p.audio.pause(); } catch (e) {}
+  },
+  SonarAudioPreviewStop: function() {
+    var p = window.__sonarAudioPreview;
+    if (!p) return;
+    p.silent = true;
+    try { p.audio.pause(); p.audio.removeAttribute('src'); p.audio.load(); } catch (e) {}
+    window.__sonarAudioPreview = null;
+  },
   SonarNavigateUrl: function(urlPtr) { window.location.href = UTF8ToString(urlPtr); },
   SonarCopyText: function(textPtr) {
     var text = UTF8ToString(textPtr);

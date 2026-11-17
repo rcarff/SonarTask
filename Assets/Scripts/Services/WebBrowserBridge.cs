@@ -10,7 +10,39 @@ public static class WebBrowserBridge {
  [DllImport("__Internal")] static extern void SonarPickFile(string go,string method,string url,string accept,int maxBytes,string label);
  [DllImport("__Internal")] static extern void SonarPickZip(string go,string method);
  [DllImport("__Internal")] static extern void SonarCopyText(string text);
+ [DllImport("__Internal")] static extern void SonarDownloadUrl(string url,string fileName);
+ [DllImport("__Internal")] static extern void SonarAudioPreviewPlay(string go,string method,string url,string key);
+ [DllImport("__Internal")] static extern void SonarAudioPreviewPause();
+ [DllImport("__Internal")] static extern void SonarAudioPreviewStop();
 #endif
+ // Downloads a same-origin URL as a file (the server's Content-Disposition name wins when fileName is empty).
+ public static void DownloadUrl(string url,string fileName=""){
+#if UNITY_WEBGL && !UNITY_EDITOR
+  SonarDownloadUrl(url,fileName ?? "");
+#else
+  Application.OpenURL(url);
+#endif
+ }
+ // Browser-side audio preview. receiver.method gets "PLAYING|key", "PAUSED|key", "ENDED|key" or "ERR|key|message".
+ // Playing again with the same key resumes from the paused position; a different key stops the previous sound.
+ public static void AudioPreviewPlay(GameObject receiver,string method,string url,string key){
+#if UNITY_WEBGL && !UNITY_EDITOR
+  SonarAudioPreviewPlay(receiver.name,method,url,key);
+#else
+  Debug.LogWarning("Audio preview is Web-only in runtime.");
+  receiver.SendMessage(method,"ERR|"+key+"|Audio preview is available only in the Web build.",SendMessageOptions.DontRequireReceiver);
+#endif
+ }
+ public static void AudioPreviewPause(){
+#if UNITY_WEBGL && !UNITY_EDITOR
+  SonarAudioPreviewPause();
+#endif
+ }
+ public static void AudioPreviewStop(){
+#if UNITY_WEBGL && !UNITY_EDITOR
+  SonarAudioPreviewStop();
+#endif
+ }
  public static void OpenUrl(string url){
 #if UNITY_WEBGL && !UNITY_EDITOR
   SonarOpenUrl(url);

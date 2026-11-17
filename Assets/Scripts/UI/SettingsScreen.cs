@@ -21,7 +21,7 @@ namespace SonarTask.UI
         Button unlockButton;
 
         InputField filter;
-        Transform experimentList, soundList;
+        Transform experimentList, soundList, resultList;
         [Serializable] sealed class SoundRow { public string name, modifiedUtc; public long size; }
         Image uploadProgressFill;
         Text uploadProgressText;
@@ -140,8 +140,7 @@ namespace SonarTask.UI
             uploadProgressText.raycastTarget = false;
             SetUploadProgress(0f, AppState.IsLocalWebDevelopment ? "Bundled experiments - rebuild local WebGL after changes" : "Ready to upload");
 
-            experimentList = UIFactory.GO("ExperimentList", body).transform;
-            UIFactory.VLayout(experimentList, 4, 0);
+            experimentList = UIFactory.ScrollList("ExperimentList", body);
             LoadExperiments();
             if (!AppState.IsLocalWebDevelopment)
                 StartCoroutine(Get<StorageStatus>("/api/admin/experiments/storage-status", x => {
@@ -154,21 +153,58 @@ namespace SonarTask.UI
             ClearBody();Heading("Settings > Common Audio Files",AppState.IsLocalWebDevelopment?"Bundled shared sounds are read only. Rebuild after changing Sounds/.":"Upload .wav or .mp3 files, up to 64 MiB. Existing names cannot be replaced.");
             var up=UIFactory.Button(AppState.IsLocalWebDevelopment?"Upload Audio (server only)":"Upload Audio",body,()=>WebBrowserBridge.PickFile(gameObject,nameof(OnSoundUploadEvent),"/api/admin/sounds/upload",".wav,.mp3",64*1024*1024,"sound"));UIFactory.Size(up,44);up.interactable=!AppState.IsLocalWebDevelopment;
             var progress=UIFactory.Panel("UploadProgress",body);UIFactory.Size(progress,30);uploadProgressFill=UIFactory.Panel("Fill",progress.transform,new Color(.32f,.67f,.78f,1));uploadProgressFill.raycastTarget=false;var pr=uploadProgressFill.rectTransform;pr.anchorMin=Vector2.zero;pr.anchorMax=new Vector2(0,1);pr.offsetMin=pr.offsetMax=Vector2.zero;uploadProgressText=UIFactory.Text("Ready",progress.transform,14,TextAnchor.MiddleCenter);uploadProgressText.raycastTarget=false;
-            var scroll=UIFactory.GO("SoundScroll",body);UIFactory.Size(scroll.transform as RectTransform,280,-1,1);var sr=scroll.AddComponent<ScrollRect>();var vp=UIFactory.Panel("Viewport",scroll.transform);var vr=vp.rectTransform;vr.anchorMin=Vector2.zero;vr.anchorMax=Vector2.one;vr.offsetMin=vr.offsetMax=Vector2.zero;vp.gameObject.AddComponent<Mask>().showMaskGraphic=false;
-            soundList=UIFactory.GO("Sounds",vp.transform).transform;var cr=(RectTransform)soundList;cr.anchorMin=new Vector2(0,1);cr.anchorMax=Vector2.one;cr.pivot=new Vector2(.5f,1);cr.sizeDelta=Vector2.zero;UIFactory.VLayout(soundList,4,0);soundList.gameObject.AddComponent<ContentSizeFitter>().verticalFit=ContentSizeFitter.FitMode.PreferredSize;sr.viewport=vr;sr.content=cr;UIFactory.VerticalScroll(sr);
+            soundList=UIFactory.ScrollList("SoundScroll",body);
             LoadCommonAudio();BackToSettings();
         }
 
+        // Play/Pause preview: a triangle or two bars plus a text label, so the state never relies on color alone.
+        sealed class SoundPreview { public GameObject playIcon, pauseIcon; public Text label; }
+        readonly Dictionary<string,SoundPreview> soundPreviews=new();
+        string playingSound;
+
+        SoundPreview SoundPreviewButton(Transform parent,string name) {
+            var bg=UIFactory.Panel("PlayPause",parent,new Color(.20f,.25f,.30f,1));var b=bg.gameObject.AddComponent<Button>();b.targetGraphic=bg;UIFactory.Size(bg,38,96);
+            var icon=UIFactory.GO("PlayIcon",bg.transform);var ir=(RectTransform)icon.transform;ir.anchorMin=ir.anchorMax=new Vector2(0,.5f);ir.pivot=new Vector2(.5f,.5f);ir.sizeDelta=new Vector2(16,16);ir.anchoredPosition=new Vector2(18,0);
+            var tri=icon.AddComponent<Image>();tri.sprite=InstructionVideo.PlaySprite();tri.color=Color.white;tri.raycastTarget=false;
+            var pause=UIFactory.GO("PauseIcon",bg.transform);var pr=(RectTransform)pause.transform;pr.anchorMin=pr.anchorMax=new Vector2(0,.5f);pr.pivot=new Vector2(.5f,.5f);pr.sizeDelta=new Vector2(16,16);pr.anchoredPosition=new Vector2(18,0);
+            UIFactory.LineGraphic("BarL",pause.transform,Color.white,new Vector2(4.5f,14),new Vector2(-4,0),0);UIFactory.LineGraphic("BarR",pause.transform,Color.white,new Vector2(4.5f,14),new Vector2(4,0),0);
+            var label=UIFactory.Text("Play",bg.transform,15,TextAnchor.MiddleLeft);label.rectTransform.offsetMin=new Vector2(32,0);label.raycastTarget=false;
+            var p=new SoundPreview{playIcon=icon,pauseIcon=pause,label=label};SetPreviewVisual(p,false);
+            b.onClick.AddListener(()=>{
+                if(playingSound==name){WebBrowserBridge.AudioPreviewPause();return;}
+                var url=AppState.IsLocalWebDevelopment?"Sounds/"+Uri.EscapeDataString(name):"/api/sounds/"+Uri.EscapeDataString(name);
+                label.text="Loading";WebBrowserBridge.AudioPreviewPlay(gameObject,nameof(OnSoundPreviewEvent),url,name);
+            });
+            return p;
+        }
+
+        static void SetPreviewVisual(SoundPreview p,bool playing) { if(p==null || !p.label)return;p.playIcon.SetActive(!playing);p.pauseIcon.SetActive(playing);p.label.text=playing?"Pause":"Play"; }
+
+        public void OnSoundPreviewEvent(string payload) {
+            if(string.IsNullOrEmpty(payload))return;var p=payload.Split(new[]{'|'},3);var key=p.Length>1?p[1]:"";soundPreviews.TryGetValue(key,out var view);
+            switch(p[0]){
+                case "PLAYING":playingSound=key;SetPreviewVisual(view,true);break;
+                case "PAUSED":case "ENDED":if(playingSound==key)playingSound=null;SetPreviewVisual(view,false);break;
+                case "ERR":if(playingSound==key)playingSound=null;SetPreviewVisual(view,false);if(status)status.text="Unable to play '"+key+"': "+(p.Length>2?p[2]:"unknown error");break;
+            }
+        }
+
+        void StopSoundPreview() { WebBrowserBridge.AudioPreviewStop();playingSound=null;soundPreviews.Clear(); }
+        void OnDisable() { StopSoundPreview(); }
+
         void LoadCommonAudio() {
-            var list=soundList;if(!list)return;ClearChildren(list);
+            var list=soundList;if(!list)return;ClearChildren(list);StopSoundPreview();
             StartCoroutine(Get<List<SoundRow>>(AppState.IsLocalWebDevelopment?"Sounds/index.json":"/api/admin/sounds",rows=>{
                 if(!list || list!=soundList)return;
-                foreach(var x in rows ?? new List<SoundRow>()){var row=UIFactory.GO("Sound",list);UIFactory.Size(row.transform as RectTransform,40);UIFactory.HLayout(row.transform,5,0);UIFactory.Size(UIFactory.Text(x.name+"  ("+x.size.ToString("N0")+" bytes)",row.transform,15),38,-1,-1,1);var del=UIFactory.Button(AppState.IsLocalWebDevelopment?"Read only":"Delete",row.transform,()=>Modal.Show(Manager.Root,"Delete sound","Delete '"+x.name+"'?",()=>StartCoroutine(DeleteCommonAudio(x.name)),()=>{},"Delete","Cancel"));UIFactory.Size(del,38,100);del.interactable=!AppState.IsLocalWebDevelopment;}
+                foreach(var x in rows ?? new List<SoundRow>()){var row=UIFactory.FixedRow("Sound",list,40,5);UIFactory.Size(UIFactory.Text(x.name+"  ("+x.size.ToString("N0")+" bytes)",row.transform,15),38,-1,-1,1);
+                    soundPreviews[x.name]=SoundPreviewButton(row.transform,x.name);
+                    var dl=UIFactory.Button("Download",row.transform,()=>WebBrowserBridge.DownloadUrl(AppState.IsLocalWebDevelopment?"Sounds/"+Uri.EscapeDataString(x.name):"/api/admin/sounds/"+Uri.EscapeDataString(x.name)+"/download",x.name));UIFactory.Size(dl,38,110);
+                    var del=UIFactory.Button(AppState.IsLocalWebDevelopment?"Read only":"Delete",row.transform,()=>Modal.Show(Manager.Root,"Delete sound","Delete '"+x.name+"'?",()=>StartCoroutine(DeleteCommonAudio(x.name)),()=>{},"Delete","Cancel"));UIFactory.Size(del,38,100);del.interactable=!AppState.IsLocalWebDevelopment;}
             },e=>status.text=FriendlyServerMessage(e)));
         }
 
         IEnumerator DeleteCommonAudio(string name) {
-            using var r=UnityWebRequest.Delete("/api/admin/sounds/"+UnityWebRequest.EscapeURL(name));r.downloadHandler=new DownloadHandlerBuffer();yield return r.SendWebRequest(); CheckElevation(r);
+            using var r=UnityWebRequest.Delete("/api/admin/sounds/"+Uri.EscapeDataString(name));r.downloadHandler=new DownloadHandlerBuffer();yield return r.SendWebRequest(); CheckElevation(r);
             if(r.result==UnityWebRequest.Result.Success)LoadCommonAudio();else Modal.Show(Manager.Root,"Unable to delete sound",FriendlyServerMessage(r.downloadHandler.text));
         }
 
@@ -178,7 +214,7 @@ namespace SonarTask.UI
             switch(p[0]){case "START":SetUploadProgress(0,"Uploading sound...");break;case "PROGRESS":if(p.Length>1 && int.TryParse(p[1],out var pct))SetUploadProgress(pct/100f,"Uploading... "+pct+"%");break;case "PROCESSING":SetUploadProgress(1,"Installing sound...");break;case "OK":SetUploadProgress(1,"Upload successful");LoadCommonAudio();break;case "ERR":if(p.Length>1 && p[1]=="401")LockSettings();SetUploadProgress(0,"Upload failed");Modal.Show(Manager.Root,"Sound upload failed",p.Length>2?FriendlyServerMessage(p[2]):payload);break;}
         }
 
-        void LockSettings() { passwordInput.text="";passwordInput.gameObject.SetActive(true);unlockButton.gameObject.SetActive(true);unlockButton.interactable=true;body.gameObject.SetActive(false);status.text="Settings authorization expired. Re-enter the operator password."; }
+        void LockSettings() { StopSoundPreview();passwordInput.text="";passwordInput.gameObject.SetActive(true);unlockButton.gameObject.SetActive(true);unlockButton.interactable=true;body.gameObject.SetActive(false);status.text="Settings authorization expired. Re-enter the operator password."; }
         void CheckElevation(UnityWebRequest request) { if(request.responseCode==401)LockSettings(); }
 
         void ShowResults()
@@ -188,12 +224,12 @@ namespace SonarTask.UI
                 ? "Production result browsing/download requires the API server. Local task result events remain in browser memory only."
                 : "Browse and download result files.");
             filter = UIFactory.Input("Filter result filenames", body); UIFactory.Size(filter, 44);
-            var buttons = UIFactory.GO("ResultActions", body); UIFactory.Size((RectTransform)buttons.transform, 44); UIFactory.HLayout(buttons.transform, 6, 0);
+            var buttons = UIFactory.FixedRow("ResultActions", body, 44, 6);
             var refresh = UIFactory.Button("Search", buttons.transform, LoadResults); UIFactory.Size(refresh, 42, 110);
             var dl = UIFactory.Button("Download Selected", buttons.transform, DownloadSelected); UIFactory.Size(dl, 42, 170);
-            var all = UIFactory.Button("Download Visible", buttons.transform, () => WebBrowserBridge.OpenUrl("/api/admin/results/download?filter=" + UnityWebRequest.EscapeURL(filter.text))); UIFactory.Size(all, 42, 170);
+            var all = UIFactory.Button("Download Visible", buttons.transform, () => WebBrowserBridge.DownloadUrl("/api/admin/results/download?filter=" + UnityWebRequest.EscapeURL(filter.text))); UIFactory.Size(all, 42, 170);
             if (AppState.IsLocalWebDevelopment) { refresh.interactable = false; dl.interactable = false; all.interactable = false; }
-            var results = UIFactory.GO("ResultsList", body); UIFactory.VLayout(results.transform, 3, 0);
+            resultList = UIFactory.ScrollList("ResultsList", body, 160, 100, 3);
             LoadResults();
             BackToSettings();
         }
@@ -219,10 +255,11 @@ namespace SonarTask.UI
                 ? "Local mappings and assignments are stored only in browser-local development storage."
                 : "Provider IDs are mapped to server-side participant assignments. Participants cannot choose their own experiment package.");
             var add = UIFactory.Button("Add External Study", body, () => ShowExternalStudyEditor(null)); UIFactory.Size(add, 42);
-            var list = UIFactory.GO("ExternalStudyList", body).transform; UIFactory.VLayout(list, 4, 0);
+            var list = UIFactory.ScrollList("ExternalStudyList", body, 240, 130);
             BackToSettings();
 
             Action<List<ExternalStudyConfig>> render = rows => {
+                if (!list) return;
                 ClearChildren(list);
                 if (rows == null || rows.Count == 0) {
                     var empty = UIFactory.Text("No external studies are configured.", list, 15, TextAnchor.MiddleCenter); UIFactory.Size(empty, 42);
@@ -230,13 +267,13 @@ namespace SonarTask.UI
                 }
                 foreach (var x in rows.OrderBy(x => x.provider).ThenBy(x => x.providerStudyId))
                 {
-                    var card = UIFactory.Panel("ExternalStudy", list, new Color(.065f,.075f,.09f,1)); UIFactory.Size(card, 110); UIFactory.VLayout(card.transform, 2, 6);
+                    var card = UIFactory.Panel("ExternalStudy", list, new Color(.065f,.075f,.09f,1)); UIFactory.Size(card, 110, -1, 0); UIFactory.VLayout(card.transform, 2, 6);
                     var summary = UIFactory.Text(
                         $"{ExternalStudyService.ProviderDisplay(x.provider)}  |  {x.providerStudyId}  |  {ExternalStudyService.AssignmentModeDisplay(x.assignmentMode)}  |  {(x.enabled ? "Enabled" : "Disabled")}\n" +
                         $"Production: {x.assignedCount} assigned / {x.completedCount} completed    Test: {x.testAssignedCount} assigned / {x.testCompletedCount} completed" + GroupCounts(x),
                         card.transform, 13, TextAnchor.MiddleLeft);
                     UIFactory.Size(summary, 66);
-                    var actions = UIFactory.GO("Actions", card.transform); UIFactory.Size((RectTransform)actions.transform, 30); var hl = UIFactory.HLayout(actions.transform, 5, 0); hl.childAlignment = TextAnchor.MiddleRight;
+                    var actions = UIFactory.FixedRow("Actions", card.transform, 30, 5, 0, TextAnchor.MiddleRight);
                     var edit = UIFactory.Button("Edit", actions.transform, () => ShowExternalStudyEditor(CloneStudy(x)), 13); UIFactory.Size(edit, 28, 68);
                     var test = UIFactory.Button("Test URL", actions.transform, () => { ShowExternalStudyEditor(CloneStudy(x)); GenerateTestLaunchUrl(); }, 13); UIFactory.Size(test, 28, 82);
                     var clearTest = UIFactory.Button("Clear Tests", actions.transform, () => ResetTestData(x), 13); UIFactory.Size(clearTest, 28, 90);
@@ -273,27 +310,18 @@ namespace SonarTask.UI
 
             completionUrl = UIFactory.Input("Completion URL (optional)", body); UIFactory.Size(completionUrl, 40); completionUrl.text = editingExternalStudy.completionUrl ?? "";
 
-            var toggles = UIFactory.GO("Flags", body); UIFactory.Size((RectTransform)toggles.transform, 38); var th = UIFactory.HLayout(toggles.transform, 14, 0); th.childForceExpandWidth = false; th.childAlignment = TextAnchor.MiddleCenter;
+            var toggles = UIFactory.FixedRow("Flags", body, 38, 14, 0, TextAnchor.MiddleCenter);
             autoStartToggle = UIFactory.Toggle("Auto Start", toggles.transform); UIFactory.Size(autoStartToggle, 36, 150); autoStartToggle.isOn = editingExternalStudy.autoStart;
             showInstructionsToggle = UIFactory.Toggle("Show Instructions", toggles.transform); UIFactory.Size(showInstructionsToggle, 36, 180); showInstructionsToggle.isOn = editingExternalStudy.showInstructions;
             enabledToggle = UIFactory.Toggle("Enabled", toggles.transform); UIFactory.Size(enabledToggle, 36, 130); enabledToggle.isOn = editingExternalStudy.enabled;
 
             var expHelp = UIFactory.Text("Loading installed experiment package names…", body, 13, TextAnchor.MiddleLeft); UIFactory.Size(expHelp, 34);
 
-            var groupHeader = UIFactory.GO("GroupHeader", body); UIFactory.Size((RectTransform)groupHeader.transform, 34); var gh = UIFactory.HLayout(groupHeader.transform, 6, 0); gh.childAlignment = TextAnchor.MiddleCenter;
+            var groupHeader = UIFactory.FixedRow("GroupHeader", body, 34, 6, 0, TextAnchor.MiddleCenter);
             var gl = UIFactory.Text("Groups / Sequences", groupHeader.transform, 17, TextAnchor.MiddleLeft); UIFactory.Size(gl, 32, -1, -1, 1);
             var addGroup = UIFactory.Button("+ Add Group", groupHeader.transform, () => AddGroupEditor(null), 14); UIFactory.Size(addGroup, 32, 120);
 
-            var groupScroll = UIFactory.GO("GroupEditorsScroll", body); UIFactory.Size((RectTransform)groupScroll.transform, 170);
-            var scroll = groupScroll.AddComponent<ScrollRect>(); scroll.horizontal = false;
-            var viewport = UIFactory.Panel("Viewport", groupScroll.transform, new Color(.035f,.045f,.055f,1));
-            var vr = viewport.rectTransform; vr.anchorMin = Vector2.zero; vr.anchorMax = Vector2.one; vr.offsetMin = vr.offsetMax = Vector2.zero;
-            viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
-            groupEditorList = UIFactory.GO("GroupEditors", viewport.transform).transform;
-            var gr = (RectTransform)groupEditorList; gr.anchorMin = new Vector2(0,1); gr.anchorMax = new Vector2(1,1); gr.pivot = new Vector2(.5f,1); gr.sizeDelta = Vector2.zero;
-            UIFactory.VLayout(groupEditorList, 4, 0);
-            var fitter = groupEditorList.gameObject.AddComponent<ContentSizeFitter>(); fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            scroll.viewport = vr; scroll.content = gr;
+            groupEditorList = UIFactory.ScrollList("GroupEditorsScroll", body, 170, 110);
             groupEditors.Clear();
             if (editingExternalStudy.groups == null || editingExternalStudy.groups.Count == 0) editingExternalStudy.groups = NewStudy().groups;
             foreach (var g in editingExternalStudy.groups) AddGroupEditor(g, groupEditorList);
@@ -304,12 +332,12 @@ namespace SonarTask.UI
             modeDrop.ValueChanged += _ => { RefreshLaunchPreview(); status.text = AssignmentHelp(SelectedMode()); };
             externalStudyId.onValueChanged.AddListener(_ => RefreshLaunchPreview());
 
-            var testActions = UIFactory.GO("TestActions", body); UIFactory.Size((RectTransform)testActions.transform, 40); var tah = UIFactory.HLayout(testActions.transform, 8, 0); tah.childAlignment = TextAnchor.MiddleCenter;
+            var testActions = UIFactory.FixedRow("TestActions", body, 40, 8, 0, TextAnchor.MiddleCenter);
             var genTest = UIFactory.Button(AppState.IsLocalWebDevelopment ? "Save + Generate Local Test URL" : "Save + Generate Secure Test URL", testActions.transform, GenerateTestLaunchUrl, 14); UIFactory.Size(genTest, 38, 190);
             var copyTest = UIFactory.Button("Copy Test URL", testActions.transform, () => { if (string.IsNullOrWhiteSpace(generatedTestUrl)) status.text = "Generate a test URL first."; else { WebBrowserBridge.CopyText(generatedTestUrl); status.text = "Test URL copied to the clipboard. Open it in a private/incognito browser window so the participant cookie does not replace your Settings login."; } }, 14); UIFactory.Size(copyTest, 38, 150);
             var clearTests = UIFactory.Button("Clear Test Data", testActions.transform, () => ResetTestData(editingExternalStudy), 14); UIFactory.Size(clearTests, 38, 150);
 
-            var actions = UIFactory.GO("EditorActions", body); UIFactory.Size((RectTransform)actions.transform, 42); var ah = UIFactory.HLayout(actions.transform, 8, 0); ah.childAlignment = TextAnchor.MiddleCenter;
+            var actions = UIFactory.FixedRow("EditorActions", body, 42, 8, 0, TextAnchor.MiddleCenter);
             var save = UIFactory.Button("Save", actions.transform, SaveExternalStudy); UIFactory.Size(save, 40, 130);
             var resetProd = UIFactory.Button("Reset Production Data", actions.transform, () => ResetProductionData(editingExternalStudy, true), 14); UIFactory.Size(resetProd, 40, 190);
             var cancel = UIFactory.Button("Cancel", actions.transform, ShowExternalStudies); UIFactory.Size(cancel, 40, 130);
@@ -324,19 +352,16 @@ namespace SonarTask.UI
             var parent = forcedParent ?? groupEditorList;
             if (!parent) return;
             group ??= new ExternalStudyGroup { id = Guid.NewGuid().ToString("N"), name = "Group " + (groupEditors.Count + 1), weight = 1, experiments = new List<string>() };
-            var row = UIFactory.Panel("GroupEditor", parent, new Color(.055f,.065f,.078f,1)); UIFactory.Size(row, 100);
+            // No fixed height: the card reports its children's total, so added experiment lines push it taller instead of overlapping.
+            var row = UIFactory.Panel("GroupEditor", parent, new Color(.055f,.065f,.078f,1));
             UIFactory.VLayout(row.transform, 3, 3);
-            row.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            var header = UIFactory.GO("GroupHeader", row.transform); UIFactory.Size((RectTransform)header.transform, 42);
-            var h = UIFactory.HLayout(header.transform, 5, 3); h.childAlignment = TextAnchor.MiddleCenter;
+            var header = UIFactory.FixedRow("GroupHeader", row.transform, 42, 5, 3, TextAnchor.MiddleCenter);
             var name = UIFactory.Input("Group name", header.transform); UIFactory.Size(name, 38, 130); name.text = group.name ?? "";
             var weight = UIFactory.Input("Weight", header.transform); UIFactory.Size(weight, 38, 70); weight.contentType = InputField.ContentType.IntegerNumber; weight.text = Mathf.Max(1, group.weight).ToString();
             var add = UIFactory.Button("+ Experiment", header.transform, null, 13); UIFactory.Size(add, 38, 120);
             var remove = UIFactory.Button("Remove Group", header.transform, null, 13); UIFactory.Size(remove, 38, 110);
             var choicesRoot = UIFactory.GO("ExperimentChoices", row.transform);
-            UIFactory.Size((RectTransform)choicesRoot.transform, 42);
             UIFactory.VLayout(choicesRoot.transform, 3, 0);
-            choicesRoot.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var editor = new GroupEditorRow { id = string.IsNullOrWhiteSpace(group.id) ? Guid.NewGuid().ToString("N") : group.id, root = row.gameObject, name = name, weight = weight };
             groupEditors.Add(editor);
             add.onClick.AddListener(() => AddExperimentChoice(editor, choicesRoot.transform, null));
@@ -347,8 +372,7 @@ namespace SonarTask.UI
 
         void AddExperimentChoice(GroupEditorRow group, Transform parent, string selected)
         {
-            var line = UIFactory.GO("ExperimentChoice", parent); UIFactory.Size((RectTransform)line.transform, 38);
-            var layout = UIFactory.HLayout(line.transform, 5, 0); layout.childAlignment = TextAnchor.MiddleCenter;
+            var line = UIFactory.FixedRow("ExperimentChoice", parent, 38, 5, 0, TextAnchor.MiddleCenter).gameObject;
             var dropdown = UIFactory.PopupDropdown("Select experiment package", line.transform); UIFactory.Size(dropdown, 36, -1, -1, 1);
             var remove = UIFactory.Button("Remove", line.transform, null, 12); UIFactory.Size(remove, 36, 75);
             var choice = new ExperimentChoice { root = line, dropdown = dropdown, packageName = selected ?? "" };
@@ -630,7 +654,7 @@ namespace SonarTask.UI
         void LoadResults()
         {
             if (body == null || !body.gameObject.activeSelf) return;
-            var list = body.Find("ResultsList"); if (!list) return;
+            var list = resultList; if (!list) return;
             ClearChildren(list);
             selectedResults.Clear();
             if (AppState.IsLocalWebDevelopment)
@@ -640,12 +664,14 @@ namespace SonarTask.UI
             }
             StartCoroutine(Get<List<ResultRow>>("/api/admin/results?filter=" + UnityWebRequest.EscapeURL(filter?.text ?? ""), rows =>
             {
-                foreach (var x in rows)
+                if (!list || list != resultList) return;
+                foreach (var x in rows ?? new List<ResultRow>())
                 {
-                    var row = UIFactory.GO("Result", list); UIFactory.Size((RectTransform)row.transform, 38); UIFactory.HLayout(row.transform, 4, 0);
+                    var row = UIFactory.FixedRow("Result", list, 38, 4);
                     var tg = UIFactory.Toggle(x.fileName, row.transform); UIFactory.Size(tg, 36, -1, -1, 1);
                     tg.onValueChanged.AddListener(v => { if (v) { if (!selectedResults.Contains(x.fileName)) selectedResults.Add(x.fileName); } else selectedResults.Remove(x.fileName); });
-                    var one = UIFactory.Button("Download", row.transform, () => WebBrowserBridge.OpenUrl("/api/admin/results/file/" + UnityWebRequest.EscapeURL(x.fileName))); UIFactory.Size(one, 36, 100);
+                    // One ZIP with every file of this run: the CSV plus its .meta.json and .experiment.json sidecars.
+                    var one = UIFactory.Button("Download", row.transform, () => WebBrowserBridge.DownloadUrl("/api/admin/results/run/" + Uri.EscapeDataString(x.fileName))); UIFactory.Size(one, 36, 100);
                 }
             }, e => status.text = FriendlyServerMessage(e)));
         }
@@ -655,18 +681,22 @@ namespace SonarTask.UI
             if (AppState.IsLocalWebDevelopment) { status.text = "Production result downloads are server-only."; return; }
             if (selectedResults.Count == 0) { status.text = "Select one or more result files first."; return; }
             StartCoroutine(PostJson("/api/admin/results/download-selected", new { files = selectedResults }, text =>
-                WebBrowserBridge.OpenUrl("/api/admin/results/download-token/" + text.Trim('"')), e => status.text = FriendlyServerMessage(e)));
+                WebBrowserBridge.DownloadUrl("/api/admin/results/download-token/" + text.Trim('"')), e => status.text = FriendlyServerMessage(e)));
         }
 
         void LoadExperiments()
         {
             if (experimentList == null) return;
-            ClearChildren(experimentList);
+            var list = experimentList;
+            ClearChildren(list);
             Action<List<ExpRow>> render = rows => {
                 foreach (var x in rows ?? new List<ExpRow>())
                 {
-                    var row = UIFactory.GO("Exp", experimentList); UIFactory.Size((RectTransform)row.transform, 40); UIFactory.HLayout(row.transform, 5, 0);
+                    if (!list || list != experimentList) return;
+                    var row = UIFactory.FixedRow("Exp", list, 40, 5);
                     var t = UIFactory.Text($"{x.name} ({x.packageName}) v{x.version}", row.transform, 15); UIFactory.Size(t, 38, -1, -1, 1);
+                    var dl = UIFactory.Button("Download", row.transform, () => WebBrowserBridge.DownloadUrl("/api/admin/experiments/" + Uri.EscapeDataString(x.packageName) + "/download", x.packageName + ".zip")); UIFactory.Size(dl, 38, 110);
+                    dl.interactable = !AppState.IsLocalWebDevelopment; // bundled local-test packages have no server to zip them
                     var del = UIFactory.Button(AppState.IsLocalWebDevelopment ? "Read only" : "Delete", row.transform, () => DeleteExperiment(x.packageName)); UIFactory.Size(del, 38, 100);
                     if (AppState.IsLocalWebDevelopment) del.interactable = false;
                 }
@@ -737,9 +767,10 @@ namespace SonarTask.UI
 
         void ClearBody()
         {
+            StopSoundPreview();
             ClearChildren(body);
             body.gameObject.SetActive(true);
-            experimentList = null; soundList = null; filter = null; uploadProgressFill = null; uploadProgressText = null;
+            experimentList = null; soundList = null; resultList = null; filter = null; uploadProgressFill = null; uploadProgressText = null;
             groupEditors.Clear(); editorExperiments.Clear(); groupEditorList = null;
         }
 

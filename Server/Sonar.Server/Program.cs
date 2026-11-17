@@ -181,7 +181,14 @@ app.MapGet("/experiments/{package}/assets/{**asset}", async (HttpContext c, stri
 }).RequireAuthorization();
 
 app.MapGet("/sounds/{name}", (string name) => {
-    try { var f=CommonSoundFiles.SafeFile(soundsRoot,name);return CommonSoundFiles.IsAudio(f)&&File.Exists(f)?Results.File(f,ContentType(f)):Results.NotFound(); }
+    // Range processing lets the Settings audio preview (<audio>) seek and resume.
+    try { var f=CommonSoundFiles.SafeFile(soundsRoot,name);return CommonSoundFiles.IsAudio(f)&&File.Exists(f)?Results.File(f,ContentType(f),enableRangeProcessing:true):Results.NotFound(); }
+    catch(ArgumentException){return Results.BadRequest(new{message="Invalid sound name."});}
+}).RequireAuthorization();
+
+app.MapGet("/admin/sounds/{name}/download", (HttpContext c,string name) => {
+    if(!Admin(c,authFile))return Results.Unauthorized();
+    try { var f=CommonSoundFiles.SafeFile(soundsRoot,name);return CommonSoundFiles.IsAudio(f)&&File.Exists(f)?Results.File(f,ContentType(f),Path.GetFileName(f)):Results.NotFound(); }
     catch(ArgumentException){return Results.BadRequest(new{message="Invalid sound name."});}
 }).RequireAuthorization();
 
@@ -382,6 +389,17 @@ app.MapDelete("/admin/experiments/{package}", async (HttpContext c, string packa
     return Results.Ok(new { ok = true });
 }).RequireAuthorization();
 
+// Whole package folder as a ZIP with one top-level <package>/ directory, so it can be re-uploaded as-is.
+app.MapGet("/admin/experiments/{package}/download", (HttpContext c, string package) =>
+{
+    if (!Admin(c, authFile)) return Results.Unauthorized();
+    string dir;
+    try { dir = SafePackageDir(experimentRoot, package); } catch (InvalidOperationException e) { return Results.BadRequest(new { ok = false, message = e.Message }); }
+    if (!Directory.Exists(dir)) return Results.NotFound();
+    var name = Path.GetFileName(dir);
+    return ZipDirectory(dir, name, name + ".zip");
+}).RequireAuthorization();
+
 app.MapGet("/admin/results", async (HttpContext c, string? filter) =>
     Admin(c, authFile) ? Results.Ok(await Db.Results(dbFile, filter ?? "", resultRoot)) : Results.Unauthorized()).RequireAuthorization();
 
@@ -390,6 +408,15 @@ app.MapGet("/admin/results/file/{fileName}", (HttpContext c, string fileName) =>
     if (!Admin(c, authFile)) return Results.Unauthorized();
     var f = SafeResultFile(resultRoot, fileName);
     return File.Exists(f) ? Results.File(f, "application/octet-stream", Path.GetFileName(f)) : Results.NotFound();
+}).RequireAuthorization();
+
+// Every file of one run (CSV, .meta.json, .experiment.json and any other sidecar sharing its stem) as one ZIP.
+app.MapGet("/admin/results/run/{fileName}", (HttpContext c, string fileName) =>
+{
+    if (!Admin(c, authFile)) return Results.Unauthorized();
+    var csv = SafeResultFile(resultRoot, fileName);
+    if (!csv.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) || !File.Exists(csv)) return Results.NotFound();
+    return ZipFiles(ResultRunFiles(resultRoot, csv), Path.GetFileNameWithoutExtension(csv) + ".zip");
 }).RequireAuthorization();
 
 app.MapGet("/admin/results/download", (HttpContext c, string? filter) =>
@@ -403,12 +430,7 @@ var tokens = new Dictionary<string, (DateTime expires, string[] files)>();
 app.MapPost("/admin/results/download-selected", (HttpContext c, SelectedFiles s) =>
 {
     if (!Admin(c, authFile)) return Results.Unauthorized();
-    var fs = s.files.SelectMany(x =>
-    {
-        var safe = SafeResultFile(resultRoot, x);
-        var stem = Path.Combine(resultRoot, Path.GetFileNameWithoutExtension(safe));
-        return new[] { safe, stem + ".meta.json", stem + ".experiment.json" };
-    }).Where(File.Exists).Distinct().ToArray();
+    var fs = s.files.SelectMany(x => ResultRunFiles(resultRoot, SafeResultFile(resultRoot, x))).Distinct().ToArray();
     var token = Guid.NewGuid().ToString("N");
     lock (tokens) tokens[token] = (DateTime.UtcNow.AddMinutes(2), fs);
     return Results.Json(token);
@@ -763,6 +785,29 @@ static string SafeExperimentFile(string root, string package, string rel)
 }
 
 static string SafeResultFile(string root, string name) => Path.Combine(root, Path.GetFileName(name));
+
+// A run's files share the CSV's stem (<Subject>__<Package>__<UTC>__<id>); the stem ends in the run id, so "<stem>." is unambiguous.
+static string[] ResultRunFiles(string root, string csv)
+{
+    var prefix = Path.GetFileNameWithoutExtension(csv) + ".";
+    return Directory.GetFiles(root).Where(f => Path.GetFileName(f).StartsWith(prefix, StringComparison.Ordinal)).OrderBy(f => f, StringComparer.Ordinal).ToArray();
+}
+
+// Zips a directory tree under topFolder/ into a temp file that is deleted when the response stream closes.
+static IResult ZipDirectory(string dir, string topFolder, string download)
+{
+    var tmp = Path.Combine(Path.GetTempPath(), "sonar-download-" + Guid.NewGuid().ToString("N") + ".zip");
+    var fs = new FileStream(tmp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.DeleteOnClose);
+    try
+    {
+        using (var zip = new ZipArchive(fs, ZipArchiveMode.Create, true))
+            foreach (var f in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal))
+                zip.CreateEntryFromFile(f, topFolder + "/" + Path.GetRelativePath(dir, f).Replace('\\', '/'), CompressionLevel.Fastest);
+        fs.Position = 0;
+        return Results.File(fs, "application/zip", download);
+    }
+    catch { fs.Dispose(); throw; }
+}
 static string ContentType(string f) => Path.GetExtension(f).ToLowerInvariant() switch
 {
     ".json" => "application/json", ".md" => "text/markdown; charset=utf-8", ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".wav" => "audio/wav", ".mp3" => "audio/mpeg",

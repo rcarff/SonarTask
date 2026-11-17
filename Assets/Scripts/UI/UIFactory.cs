@@ -239,6 +239,41 @@ public static class UIFactory {
         return h;
     }
 
+    // Fixed-height horizontal row. HLayout's force-expand height makes a row report flexibleHeight=1,
+    // so a parent VerticalLayoutGroup hands it spare space and its buttons stretch. This row never grows,
+    // and its children keep their own preferred heights, centered vertically.
+    public static HorizontalLayoutGroup FixedRow(string name, Transform parent, float height, float spacing = 6, int pad = 0, TextAnchor align = TextAnchor.MiddleLeft) {
+        var g = GO(name, parent);
+        var e = g.AddComponent<LayoutElement>();
+        e.minHeight = height; e.preferredHeight = height; e.flexibleHeight = 0;
+        var h = HLayout(g.transform, spacing, pad);
+        h.childForceExpandHeight = false;
+        h.childAlignment = align;
+        return h;
+    }
+
+    // Vertical scroll pane for lists inside a VerticalLayoutGroup. The pane takes the parent's spare height
+    // (never less than minHeight); the rows inside keep their own height and scroll once they overflow.
+    // Returns the content transform to add rows to.
+    public static Transform ScrollList(string name, Transform parent, float preferredHeight = 160, float minHeight = 100, float spacing = 4, int pad = 4) {
+        var scroll = GO(name, parent);
+        var e = scroll.AddComponent<LayoutElement>();
+        e.minHeight = minHeight; e.preferredHeight = preferredHeight; e.flexibleHeight = 1;
+        var sr = scroll.AddComponent<ScrollRect>();
+        var vp = Panel("Viewport", scroll.transform, new Color(.035f, .045f, .055f, 1));
+        var vr = vp.rectTransform;
+        vr.anchorMin = Vector2.zero; vr.anchorMax = Vector2.one; vr.offsetMin = vr.offsetMax = Vector2.zero;
+        vp.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+        var content = GO("Content", vp.transform);
+        var cr = (RectTransform)content.transform;
+        cr.anchorMin = new Vector2(0, 1); cr.anchorMax = Vector2.one; cr.pivot = new Vector2(.5f, 1); cr.sizeDelta = Vector2.zero;
+        VLayout(content.transform, spacing, pad);
+        content.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        sr.viewport = vr; sr.content = cr;
+        VerticalScroll(sr);
+        return content.transform;
+    }
+
     public static LayoutElement Size(Component c, float preferredHeight = 40, float preferredWidth = -1, float flexibleHeight = -1, float flexibleWidth = -1) {
         var e = c.gameObject.GetComponent<LayoutElement>() ?? c.gameObject.AddComponent<LayoutElement>();
         e.preferredHeight = preferredHeight;

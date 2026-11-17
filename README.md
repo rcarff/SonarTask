@@ -550,7 +550,8 @@ Unity **Build and Run** can test the browser/WebGL renderer without deploying Do
 - The post-build step copies the project's `Experiments/` packages into the temporary Web build and generates a local manifest.
 - Experiment audio, instructions, BTH, LOFAR, training, and classifications run from those bundled local assets.
 - The password-protected Settings area is available. Re-authenticate with the same local development password.
-- **Experiments** lists the packages copied into the local build, but upload/delete are disabled.
+- **Experiments** lists the packages copied into the local build, but upload, download and delete are disabled.
+- **Common Audio Files** lists the bundled shared sounds. Play/Pause preview and Download work; upload/delete are disabled.
 - **Results** is visible for layout testing, but production result browsing/download is disabled because there is no API server.
 - **External Studies** is fully editable using browser-local development storage. Local assignments persist for that browser origin until site data is cleared.
 - **Account** is visible, but the fixed local password cannot be changed.

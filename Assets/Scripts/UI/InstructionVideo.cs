@@ -163,7 +163,7 @@ namespace SonarTask.UI
             return s;
         }
 
-        static Sprite PlaySprite()
+        internal static Sprite PlaySprite()
         {
             if (playSprite) return playSprite;
             const int size = 64;
