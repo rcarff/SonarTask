@@ -17,6 +17,8 @@ public sealed class SonarTaskScreen : SonarScreen {
     AudioService audioService;
     ResolvedPhase phase;
     Button instructionsButton; GameObject confidenceHighlight; bool instructionsOpen, recordingReady;
+    // AutoStart countdown (wall-clock UI timer; never part of the deterministic simulation clock).
+    float countdownLeft = -1; bool exitModalOpen; InstructionsOverlay openOverlay; RectTransform countdownBanner; Text countdownText;
     Button startPause, exit, confirm, clearSelectionButton;
     Text phaseText, elapsedText, remainingText, feedbackText, tallyText, alertText, trainingInfo;
     GameObject feedbackCorrectIcon, feedbackPartialIcon, feedbackIncorrectIcon;
@@ -80,6 +82,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         recorder.Begin(AppState.SelectedPackage, AppState.LoadedDefinition, definitionJson, (ok, e) => {
             recordingReady = ok; RefreshPhaseControls();
             startPause.interactable = ok;
+            if(ok) BeginAutoStartCountdown();
             if(ok && phase.AutoShowInstructions) ShowInstructions(true);
             if (!ok) Modal.Show(Manager.Root, "Result storage unavailable", e, () => Manager.Selection());
         });
@@ -426,6 +429,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             _ => "EXP_Ended"
         };
         recorder.Record(ResultEvent.Create(rt, et));
+        if (r == PhaseTransitionReason.Start || r == PhaseTransitionReason.Resume || r == PhaseTransitionReason.End) CancelCountdown();
         if (r == PhaseTransitionReason.Start || r == PhaseTransitionReason.AutoPause) LslService.Instance?.Axes(rt);
         if (r == PhaseTransitionReason.End) {
             audioService.StopAll();
@@ -446,6 +450,7 @@ public sealed class SonarTaskScreen : SonarScreen {
             audioService.PauseAll();
             startPause.GetComponentInChildren<Text>().text = "Resume";
             exit.interactable = true;
+            BeginAutoStartCountdown();
             if(phase.AutoShowInstructions) ShowInstructions(true);
         } else if (r == PhaseTransitionReason.Pause) {
             audioService.PauseAll();
@@ -470,11 +475,48 @@ public sealed class SonarTaskScreen : SonarScreen {
         if(!recordingReady || instructionsOpen || rt.State==RunState.Running || string.IsNullOrWhiteSpace(phase.InstructionsFile))return;
         instructionsOpen=true; startPause.interactable=false; RefreshPhaseControls();
         recorder.Record(ResultEvent.Create(rt,"Instructions_Opened"));
-        InstructionsOverlay.Show(Manager.Root,AppState.SelectedPackage,phase.InstructionsFile,()=>{
-            instructionsOpen=false; recorder.Record(ResultEvent.Create(rt,"Instructions_Closed")); startPause.interactable=rt.State!=RunState.Ended; RefreshPhaseControls();
-            if(automatic && phase.AutoStart==YesNo.Yes)StartPause();
+        openOverlay=InstructionsOverlay.Show(Manager.Root,AppState.SelectedPackage,phase.InstructionsFile,()=>{
+            instructionsOpen=false; openOverlay=null; recorder.Record(ResultEvent.Create(rt,"Instructions_Closed")); startPause.interactable=rt.State!=RunState.Ended; RefreshPhaseControls();
+            // Closing during an AutoStart countdown starts the phase immediately (the countdown is a maximum wait).
+            if((automatic || countdownLeft>=0) && phase.AutoStart==YesNo.Yes && (rt.State==RunState.Ready || rt.State==RunState.Paused))StartPause();
         },(type,path,position)=>{ var e=ResultEvent.Create(rt,type); e.Alert_Type=path; e.Alert_Text=position.ToString("F3",System.Globalization.CultureInfo.InvariantCulture); recorder.Record(e); });
+        if(countdownLeft>=0 && countdownBanner) countdownBanner.SetAsLastSibling();
     }
+
+    void BeginAutoStartCountdown() {
+        if(phase.AutoStart!=YesNo.Yes || phase.AutoStartCountdownSec<=0 || (rt.State!=RunState.Ready && rt.State!=RunState.Paused))return;
+        countdownLeft=phase.AutoStartCountdownSec;
+        var e=ResultEvent.Create(rt,"AutoStart_Countdown_Started"); e.Alert_Text=phase.AutoStartCountdownSec.ToString("0.###",System.Globalization.CultureInfo.InvariantCulture); recorder.Record(e);
+        EnsureCountdownBanner(); countdownBanner.gameObject.SetActive(true); countdownBanner.SetAsLastSibling(); UpdateCountdownText();
+    }
+
+    void EnsureCountdownBanner() {
+        if(countdownBanner)return;
+        var panel=UIFactory.Panel("AutoStartCountdown",Manager.Root,new Color(.06f,.07f,.08f,.96f)); panel.raycastTarget=false;
+        countdownBanner=panel.rectTransform; countdownBanner.anchorMin=countdownBanner.anchorMax=new Vector2(.5f,1); countdownBanner.pivot=new Vector2(.5f,1); countdownBanner.sizeDelta=new Vector2(560,44); countdownBanner.anchoredPosition=new Vector2(0,-6);
+        var outline=panel.gameObject.AddComponent<Outline>(); outline.effectColor=new Color(1f,.75f,.2f,1); outline.effectDistance=new Vector2(2,-2);
+        countdownText=UIFactory.Text("",countdownBanner,20,TextAnchor.MiddleCenter); countdownText.raycastTarget=false;
+        var tr=countdownText.rectTransform; tr.anchorMin=Vector2.zero; tr.anchorMax=Vector2.one; tr.offsetMin=tr.offsetMax=Vector2.zero;
+    }
+
+    void UpdateCountdownText() {
+        if(!countdownText)return;
+        countdownText.text=$"Phase {phase.Name} starts automatically in {Clock(Mathf.Ceil(countdownLeft))}";
+    }
+
+    void CancelCountdown() {
+        countdownLeft=-1;
+        if(countdownBanner)countdownBanner.gameObject.SetActive(false);
+    }
+
+    void ExpireCountdown() {
+        CancelCountdown();
+        recorder.Record(ResultEvent.Create(rt,"AutoStart_Countdown_Expired"));
+        if(instructionsOpen && openOverlay)openOverlay.Close();
+        if(rt.State==RunState.Ready || rt.State==RunState.Paused){ rt.StartOrResume(); RefreshPhaseControls(); }
+    }
+
+    void OnDestroy() { if(countdownBanner)Destroy(countdownBanner.gameObject); }
 
     void StartPause() {
         if(instructionsOpen)return;
@@ -491,12 +533,16 @@ public sealed class SonarTaskScreen : SonarScreen {
             Manager.Selection();
             return;
         }
-        if (rt.State == RunState.Paused)
+        if (rt.State == RunState.Paused) {
+            // An AutoStart countdown freezes while this confirmation is open.
+            exitModalOpen = true;
             Modal.Show(Manager.Root, "Exit experiment", "This experiment has not finished. Preserve it as an aborted run and exit?", () => {
+                exitModalOpen = false; CancelCountdown();
                 recorder.Finish(false, "OperatorExit");
                 audioService.StopAll();
                 Manager.Selection();
-            }, () => { }, "Exit", "Cancel");
+            }, () => { exitModalOpen = false; }, "Exit", "Cancel");
+        }
     }
 
     void Update() {
@@ -522,6 +568,11 @@ public sealed class SonarTaskScreen : SonarScreen {
             bth?.AdvanceMarkers(dt);
         } else if (rt.State == RunState.Paused) {
             rt.AdvancePausedTime(dt);
+        }
+        if (countdownLeft >= 0 && !exitModalOpen && recordingReady) {
+            countdownLeft -= dt;
+            if (countdownLeft <= 0) ExpireCountdown();
+            else UpdateCountdownText();
         }
         UpdateTimer();
         ExpireAlerts();

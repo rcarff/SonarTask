@@ -412,6 +412,12 @@
         "AutoStart": {
           "$ref": "#/$defs/yesNo"
         },
+        "AutoStartCountdownSec": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "Seconds an AutoStart=Yes phase waits (shown as a countdown) before starting automatically; closes open instructions on expiry. 0 disables."
+        },
         "BackgroundAudio": {
           "type": "string"
         },
@@ -551,6 +557,13 @@
             },
             "AutoStart": {
               "$ref": "#/$defs/yesNo"
+            },
+            "AutoStartCountdownSec": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 0,
+              "description": "Seconds an AutoStart=Yes phase waits (shown as a countdown) before starting automatically; closes open instructions on expiry. 0 disables."
             },
             "BackgroundAudio": {
               "type": "string"
@@ -727,6 +740,13 @@
           "properties": {
             "AutoStart": {
               "$ref": "#/$defs/yesNo"
+            },
+            "AutoStartCountdownSec": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3600,
+              "default": 0,
+              "description": "Seconds an AutoStart=Yes phase waits (shown as a countdown) before starting automatically; closes open instructions on expiry. 0 disables."
             },
             "BackgroundAudio": {
               "type": "string"

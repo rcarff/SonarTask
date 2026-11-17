@@ -39,6 +39,10 @@ External-study metadata JSON now includes `ExternalTestMode`. It is `true` only 
 
 `Instructions_Opened` and `Instructions_Closed` record in-experiment instruction overlay viewing, including automatic phase instruction prompts. They use the current phase and runtime clocks. No CSV columns were added; the header is unchanged. Viewing instructions before the task scene through the external-study Instructions scene does not create these run events.
 
+## AutoStart countdown events (FIXED39)
+
+When a phase has `AutoStart = Yes` and `AutoStartCountdownSec` > 0, `AutoStart_Countdown_Started` is written when the countdown begins, with the configured seconds in `Alert_Text` (invariant culture). `AutoStart_Countdown_Expired` is written only when the countdown runs out. It is followed by `Instructions_Closed` if instructions were open, then `EXP_Started` or `EXP_Resumed`. If the phase is started early (instructions closed, or Start/Resume pressed), no Expired event is written. The countdown runs while the experiment is paused, so `ExpElapsedTime` does not advance during it. No CSV columns were added; the header is unchanged.
+
 ## Instruction video events (FIXED38)
 
 The CSV header is unchanged. Videos played in the in-experiment instruction overlay record:

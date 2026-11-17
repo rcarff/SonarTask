@@ -75,6 +75,7 @@
   "Phases": {
     "OverlapAudio": {
       "AutoStart": "Yes",
+      "AutoStartCountdownSec": 10,
       "BTHOverlapAudio": "Yes",
       "SignalDefinitions": [
         {"Name": "Submarine", "TrainingAllowed": "Yes"},

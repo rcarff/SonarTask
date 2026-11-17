@@ -172,3 +172,14 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 - Verify Off, missing native library, missing bridge and failed control discovery do not stop/delay the simulation. Run the determinism smoke test with LSL on/off and no commands.
 - On Windows Editor/player and macOS Editor/player, confirm native plugin load. The included macOS dylib is Intel only: build universal before Apple Silicon validation, verify both architectures, distribution signing and notarization on a Mac.
 - Run `dotnet build Server/Sonar.Server` and verify hosted .meta.json retains LslEnabled/LslMode/LslSourceId. Closing a browser tab may prevent Run_Finished delivery; verify server heartbeat abort handling still works.
+
+## AutoStart countdown (FIXED39)
+
+- With `AutoStartCountdownSec` > 0, AutoStart Yes and AutoShowInstructions Yes, the countdown banner is readable above the instruction shade and counts down. On expiry, the overlay closes and the phase starts. The CSV order is `AutoStart_Countdown_Started`, `Instructions_Opened`, `AutoStart_Countdown_Expired`, `Instructions_Closed`, `EXP_Started`/`EXP_Resumed`.
+- Close the instructions before expiry: the phase starts immediately and the banner disappears (no Expired event).
+- With no instructions: the phase auto-pauses at the boundary, the banner counts down, then the phase resumes. Pressing Resume (or LSL `resume`) early starts it immediately.
+- Open the instructions manually during the countdown: the banner stays on top, and expiry closes them and starts the phase.
+- Press Exit during the countdown: the countdown freezes while the confirmation is open. Cancel continues it; Exit aborts the run cleanly.
+- The first phase with a countdown starts without pressing Start.
+- `AutoStartCountdownSec` 0/omitted behaves exactly as before. AutoStart No with a countdown set shows no countdown. Negative or > 3600 values are rejected by Validate All and by Web upload.
+- Repeat in a Web Local Test build to confirm the banner renders in WebGL.

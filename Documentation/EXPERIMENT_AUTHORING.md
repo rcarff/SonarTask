@@ -22,6 +22,20 @@ Experiment settings provide defaults. Phase fields override those defaults when 
 
 The first phase always starts when the operator presses Start. For subsequent phases, the **incoming phase's** resolved `AutoStart` setting decides whether it begins automatically or enters an automatic pause.
 
+### AutoStartCountdownSec
+
+`AutoStartCountdownSec` (number of seconds, 0..3600, default `0`) can be set in `ExperimentSettings` and overridden per phase. It only has an effect when the phase's resolved `AutoStart` is `Yes`. `0` or omitting it keeps the behavior described above.
+
+When it is greater than 0:
+
+- The phase waits at its start while a banner at the top of the screen shows `Phase <name> starts automatically in m:ss`. For the first phase, the countdown begins once result recording is ready, so the operator does not need to press Start. Later phases enter an automatic pause at the boundary.
+- The banner stays visible above the instructions overlay. With `AutoShowInstructions = Yes`, the instructions open as usual and the countdown runs while they are shown.
+- When the countdown expires, any open instructions are closed and the phase starts.
+- The countdown is a maximum wait. Closing the instructions, or pressing Start/Resume (button or LSL), before it expires starts the phase immediately.
+- The countdown freezes while the Exit confirmation is open.
+
+The experiment clock does not advance during the countdown, so it does not change signal timing or determinism. Results record `AutoStart_Countdown_Started` and, on expiry, `AutoStart_Countdown_Expired`.
+
 ## BTHOverlapAudio
 
 When signal audio is enabled, selecting exactly one signal plays that signal's audio together with any background audio. If the aperture contains multiple signals, `BTHOverlapAudio = Yes` plays all selected signal clips simultaneously; `No` suppresses signal audio for that overlapping selection. Background audio is independent and continues playing in either case.

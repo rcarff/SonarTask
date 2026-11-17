@@ -118,7 +118,8 @@ public sealed class ExperimentRuntime {
         alerted.Clear();
 
         // Per the specification, the incoming phase controls whether it auto-starts.
-        if (Phase.AutoStart == YesNo.Yes && !Phase.AutoShowInstructions) {
+        // A configured AutoStartCountdownSec also auto-pauses; the UI starts the phase on expiry.
+        if (Phase.AutoStart == YesNo.Yes && !Phase.AutoShowInstructions && Phase.AutoStartCountdownSec <= 0) {
             PhaseTransition?.Invoke(PhaseTransitionReason.Start);
             ProcessEvents();
             return true;

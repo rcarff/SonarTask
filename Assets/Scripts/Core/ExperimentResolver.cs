@@ -31,6 +31,7 @@ public static class ExperimentResolver {
                 LoFarJitterFactor = source.LoFarJitterFactor ?? defaults.LoFarJitterFactor ?? source.JitterFactor ?? defaults.JitterFactor,
                 LoFarBackgroundNoise = source.LoFarBackgroundNoise ?? defaults.LoFarBackgroundNoise ?? source.BackgroundNoise ?? defaults.BackgroundNoise,
                 AutoStart = source.AutoStart ?? defaults.AutoStart,
+                AutoStartCountdownSec = source.AutoStartCountdownSec ?? defaults.AutoStartCountdownSec,
                 BackgroundAudio = source.BackgroundAudio ?? defaults.BackgroundAudio,
                 BackgroundAudioVolume = source.BackgroundAudioVolume ?? defaults.BackgroundAudioVolume,
                 TrainingAreaEnabled = source.TrainingAreaEnabled ?? defaults.TrainingAreaEnabled,
@@ -184,6 +185,7 @@ public static class ExperimentValidator {
         if (defaults.RandomizationSeed == 0) errors.Add("RandomizationSeed must be a non-zero integer.");
         if (defaults.SignalDurationSec <= 0) errors.Add("SignalDurationSec must be > 0.");
         if (defaults.WaterfallScanRateHz <= 0) errors.Add("WaterfallScanRateHz must be > 0.");
+        ValidateCountdown(defaults.AutoStartCountdownSec, "ExperimentSettings", errors);
         defaults.LOFARViews ??= new List<LOFARView>();
         if (defaults.LOFARViews.Count == 0) errors.Add("ExperimentSettings.LOFARViews must contain at least one view. No implicit LOFAR view is created.");
         else ValidateLofarViews(defaults.LOFARViews, "ExperimentSettings", errors);
@@ -202,6 +204,7 @@ public static class ExperimentValidator {
         foreach (string phaseName in defaults.PhaseOrder) {
             if (!d.Phases.TryGetValue(phaseName, out var phase) || phase == null) { errors.Add($"Missing phase '{phaseName}'."); continue; }
             ValidateLofarNoise(phase.LoFarJitterFactor, phase.LoFarBackgroundNoise, $"Phase {phaseName}", errors);
+            if (phase.AutoStartCountdownSec.HasValue) ValidateCountdown(phase.AutoStartCountdownSec.Value, $"Phase '{phaseName}'", errors);
             phase.SignalDefinitions ??= new List<SignalOverride>();
             phase.Signals ??= new List<SignalInstance>();
             phase.Alerts ??= new List<AlertDefinition>();
@@ -263,6 +266,9 @@ public static class ExperimentValidator {
     static void ValidateLofarNoise(float? jitter,float? noise,string where,List<string> errors) {
         if(jitter.HasValue && (float.IsNaN(jitter.Value)||jitter<0||jitter>1))errors.Add(where + " LoFarJitterFactor must be 0..1.");
         if(noise.HasValue && (float.IsNaN(noise.Value)||noise<0||noise>1))errors.Add(where + " LoFarBackgroundNoise must be 0..1.");
+    }
+    static void ValidateCountdown(float sec,string where,List<string> errors) {
+        if(float.IsNaN(sec)||float.IsInfinity(sec)||sec<0||sec>3600)errors.Add(where + " AutoStartCountdownSec must be 0..3600 seconds (0 disables the countdown).");
     }
     static void ValidateWaterfallRows(float timeStart, float timeEnd, float scanRate, string where, List<string> errors) {
         float historySec = Math.Abs(timeEnd - timeStart);
