@@ -59,6 +59,7 @@ The packages in `Experiments/` are fuller working examples. `MultiBandOverlap` s
 |---|---|---|
 | `SchemaVersion` | — | Required. Must be `1`. |
 | `Name` | — | Required. Display name shown in experiment selection and written to results. |
+| `DisplayedName` | unset | Optional. Participant-facing name shown instead of `Name` while the experiment runs (instructions title and the task screen's top bar). The selection list, Settings and results still use `Name`. |
 | `Version` | `"1.0"` | Author's version string, written to result metadata. |
 | `InstructionsFile` | `"instructions.md"` | Package-relative Markdown file. Phases can override it (see [Phase controls and instructions](#phase-controls-and-instructions)). |
 | `ExperimentSettings` | — | Required. Experiment-wide settings and the defaults that phases inherit. |
@@ -98,6 +99,7 @@ Yes/No fields accept case-insensitive `Yes`, `No`, `True`, `False`, JSON boolean
 | `HideLofarSignalsIfNoSelectedBTH` | `No` | yes | See [HideLofarSignalsIfNoSelectedBTH](#hidelofarsignalsifnoselectedbth). |
 | `ShowElapsedTime` | `Yes` | yes | Show the `Elapsed mm:ss` experiment clock. |
 | `ShowRemainingTime` | `Yes` | yes | Show `Remaining mm:ss`. It counts down the whole experiment, including the BTH drain intervals of all phases. |
+| `ShowPhaseName` | `Yes` | yes | Show the `Phase: <name>` label in the top bar. With `No`, the phase name is hidden from the participant: the label is removed, the auto-start countdown says "Next phase", and the end-of-run phase results list phases as `Phase 1`, `Phase 2`, … Results files still record the real phase name. |
 
 ### Signals and timing
 

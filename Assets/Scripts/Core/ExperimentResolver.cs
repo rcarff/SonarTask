@@ -51,6 +51,7 @@ public static class ExperimentResolver {
                 AlertDurationSec = source.AlertDurationSec ?? defaults.AlertDurationSec,
                 ShowElapsedTime = source.ShowElapsedTime ?? defaults.ShowElapsedTime,
                 ShowRemainingTime = source.ShowRemainingTime ?? defaults.ShowRemainingTime,
+                ShowPhaseName = source.ShowPhaseName ?? defaults.ShowPhaseName,
                 WaterfallScanRateHz = source.WaterfallScanRateHz ?? defaults.WaterfallScanRateHz,
                 WaterfallPalette = source.WaterfallPalette ?? defaults.WaterfallPalette
             };

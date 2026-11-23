@@ -13,6 +13,11 @@
 - Bulleted and numbered lists are indented in all versions. Wrapped lines line up under the item text. Two leading spaces per level indent an item one more level, up to four levels.
 - Consecutive `>` lines form one quote block with a single gray bar. A bare `>` line adds a small gap inside the block.
 
+## Displayed name and phase-name visibility
+
+- New optional top-level field `DisplayedName`. When it is set, the instructions title and the task screen's top bar show it instead of `Name`. The experiment selection list, Settings and result files still use `Name`.
+- New setting `ShowPhaseName` (`Yes`/`No`, default `Yes`, in `ExperimentSettings` with per-phase override). With `No`, the `Phase: <name>` label is hidden, the auto-start countdown says "Next phase starts automatically in …", and the end-of-run phase results label phases `Phase 1`, `Phase 2`, … Result files still record the real phase name. Server upload validation accepts `ShowPhaseName` as a Yes/No field.
+
 ## Deployment
 
 Rebuild the Web player and the API (`docker compose up -d --build`). Older clients still work with the new server, because `completionCode` is optional.

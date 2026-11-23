@@ -1143,7 +1143,7 @@ static class ExperimentFiles
             if(p.Name=="AutoStartCountdownSec"){
                 if(p.Value.ValueKind!=JsonValueKind.Null && (p.Value.ValueKind!=JsonValueKind.Number || !p.Value.TryGetSingle(out var n) || !float.IsFinite(n) || n<0 || n>3600))errors.Add(label+" must be 0..3600 seconds.");
             }
-            if(p.Name is "AutoStart" or "TrainingAllowed" or "AlertEnabled" or "TrainingAreaEnabled" or "FeedbackEnabled" or "ClassificationTallyEnabled" or "AlertsEnabled" or "BTHOverlapAudio" or "SignalAudioEnabled" or "HideLofarSignalsIfNoSelectedBTH" or "ShowElapsedTime" or "ShowRemainingTime" or "ShowResultsAtEnd" or "ShowCompletionCode" or "DeselectBTHSignalAfterClassification" or "DisablePauseAndExit" or "AutoShowInstructions" or "ResetScoreWhenPhaseStarts") {
+            if(p.Name is "AutoStart" or "TrainingAllowed" or "AlertEnabled" or "TrainingAreaEnabled" or "FeedbackEnabled" or "ClassificationTallyEnabled" or "AlertsEnabled" or "BTHOverlapAudio" or "SignalAudioEnabled" or "HideLofarSignalsIfNoSelectedBTH" or "ShowElapsedTime" or "ShowRemainingTime" or "ShowPhaseName" or "ShowResultsAtEnd" or "ShowCompletionCode" or "DeselectBTHSignalAfterClassification" or "DisablePauseAndExit" or "AutoShowInstructions" or "ResetScoreWhenPhaseStarts") {
                 var v=p.Value;bool valid=v.ValueKind is JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null || v.ValueKind==JsonValueKind.Number && v.TryGetInt32(out var n) && (n==0||n==1) || v.ValueKind==JsonValueKind.String && new[]{"Yes","No","True","False"}.Contains(v.GetString(),StringComparer.OrdinalIgnoreCase);
                 if(!valid)errors.Add(label+" must be Yes/No, True/False, a boolean or 1/0.");
             }

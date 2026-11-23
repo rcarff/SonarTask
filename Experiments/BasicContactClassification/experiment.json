@@ -5,6 +5,7 @@
   "InstructionsFile": "instructions.md",
   "ExperimentSettings": {
     "LslEnabled": "No",
+    "ShowCompletionCode": "Yes",
     "PhaseOrder": [
       "Training",
       "Test"

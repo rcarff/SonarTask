@@ -10,7 +10,7 @@ namespace SonarTask.UI
         {
             base.Build(m);
             var root = transform.Find("Instructions");
-            string title = "Instructions — " + (AppState.LoadedDefinition?.Name ?? AppState.SelectedPackage);
+            string title = "Instructions — " + (AppState.LoadedDefinition?.RunName ?? AppState.SelectedPackage);
             if (AppState.ExternalStudyActive && AppState.ExternalExperimentSequence.Count > 1)
                 title += $"    ({AppState.ExternalSequenceIndex + 1} of {AppState.ExternalExperimentSequence.Count})";
             root.Find("Title").GetComponent<Text>().text = title;

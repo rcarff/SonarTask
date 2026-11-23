@@ -19,6 +19,10 @@
       "type": "string",
       "minLength": 1
     },
+    "DisplayedName": {
+      "type": "string",
+      "description": "Optional participant-facing name shown while the experiment runs. Name is still used in the selection list and results."
+    },
     "Version": {
       "type": "string",
       "minLength": 1
@@ -486,6 +490,9 @@
         "ShowRemainingTime": {
           "$ref": "#/$defs/yesNo"
         },
+        "ShowPhaseName": {
+          "$ref": "#/$defs/yesNo"
+        },
         "WaterfallScanRateHz": {
           "type": "number",
           "minimum": 1,
@@ -637,6 +644,9 @@
               "$ref": "#/$defs/yesNo"
             },
             "ShowRemainingTime": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "ShowPhaseName": {
               "$ref": "#/$defs/yesNo"
             },
             "WaterfallScanRateHz": {
@@ -846,6 +856,9 @@
               "$ref": "#/$defs/yesNo"
             },
             "ShowRemainingTime": {
+              "$ref": "#/$defs/yesNo"
+            },
+            "ShowPhaseName": {
               "$ref": "#/$defs/yesNo"
             },
             "WaterfallScanRateHz": {

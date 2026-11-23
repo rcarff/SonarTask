@@ -112,7 +112,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         startPause.onClick.AddListener(StartPause);
         exit.onClick.RemoveAllListeners();
         exit.onClick.AddListener(Exit);
-        info.text = $"Subject: {AppState.SubjectId}    Experiment: {AppState.LoadedDefinition.Name}";
+        info.text = $"Subject: {AppState.SubjectId}    Experiment: {AppState.LoadedDefinition.RunName}";
         if (!AppState.ResolvedExperiment.LslEnabled) return;
         var chip = UIFactory.GO("LslStatus", top);
         UIFactory.Size((RectTransform)chip.transform, 54, 175);
@@ -423,7 +423,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         BuildDisplays();
         BuildRight();
         audioService.SetBackground(AppState.SelectedPackage, phase.BackgroundAudio, phase.BackgroundAudioVolume, rt.State == RunState.Running);
-        phaseText.text = "Phase: " + phase.Name;
+        UpdatePhaseText();
         alerts.Clear();
         RefreshAlerts();
         ClearSelection(false);
@@ -522,7 +522,14 @@ public sealed class SonarTaskScreen : SonarScreen {
 
     void UpdateCountdownText() {
         if(!countdownText)return;
-        countdownText.text=$"Phase {phase.Name} starts automatically in {Clock(Mathf.Ceil(countdownLeft))}";
+        countdownText.text=phase.ShowPhaseName==YesNo.Yes?$"Phase {phase.Name} starts automatically in {Clock(Mathf.Ceil(countdownLeft))}":$"Next phase starts automatically in {Clock(Mathf.Ceil(countdownLeft))}";
+    }
+
+    // ShowPhaseName=No hides the phase name everywhere the participant can see it.
+    void UpdatePhaseText() {
+        bool show = phase.ShowPhaseName == YesNo.Yes;
+        phaseText.gameObject.SetActive(show);
+        phaseText.text = show ? "Phase: " + phase.Name : "";
     }
 
     void CancelCountdown() {
@@ -610,7 +617,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         elapsedText.text = showElapsed ? "Elapsed " + Clock(rt.ExperimentElapsedSec) : "";
         remainingText.text = showRemaining ? "Remaining " + Clock(rt.Remaining) : "";
 
-        phaseText.text = "Phase: " + phase.Name;
+        UpdatePhaseText();
     }
 
     static string Clock(float sec) {
@@ -1057,7 +1064,7 @@ public sealed class SonarTaskScreen : SonarScreen {
     // Snapshot of the feedback tally as displayed when the phase ended (cumulative if the phase did not reset it).
     void RecordPhaseScore() {
         if (phaseScores.Count > phase.Index) return;
-        phaseScores.Add(new PhaseScore { name = phase.Name, correct = shownCorrect, partial = shownPartial, incorrect = shownIncorrect, signals = phaseSignals });
+        phaseScores.Add(new PhaseScore { name = phase.ShowPhaseName == YesNo.Yes ? phase.Name : "Phase " + (phase.Index + 1), correct = shownCorrect, partial = shownPartial, incorrect = shownIncorrect, signals = phaseSignals });
     }
 
     string ResultsText(bool includeSignals) {
