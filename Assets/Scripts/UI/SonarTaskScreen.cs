@@ -32,6 +32,7 @@ public sealed class SonarTaskScreen : SonarScreen {
     bool hasSelection;
     bool awaitingConfidence;
     bool endPopupShown;
+    string completionCode = "";
     float selectionBearing;
     List<ResolvedSignal> selectedSignals = new();
     string selectedClass;
@@ -449,6 +450,14 @@ public sealed class SonarTaskScreen : SonarScreen {
             startPause.GetComponentInChildren<Text>().text = "Ended";
             exit.interactable = false;
             RefreshPhaseControls();
+            // Only natural completion of the final phase reaches here, so aborted runs never get a code.
+            if (AppState.ResolvedExperiment.ShowCompletionCode == YesNo.Yes && string.IsNullOrEmpty(completionCode)) {
+                completionCode = ResultRecorder.NewCompletionCode();
+                var code = ResultEvent.Create(rt, "Completion_Code");
+                code.Alert_Text = completionCode;
+                recorder.Record(code);
+                recorder.SetCompletionCode(completionCode);
+            }
             FinishCompletedRun();
             return;
         }
@@ -1005,6 +1014,7 @@ public sealed class SonarTaskScreen : SonarScreen {
         endPopupShown = true;
 
         string message = "The assigned study sequence is complete.";
+        message += CompletionCodeText();
         if (AppState.ResolvedExperiment.ShowResultsAtEnd == YesNo.Yes) message += ResultsText(false);
         if (!string.IsNullOrWhiteSpace(progress.assignmentGroup))
             message += "\n\nAssignment: " + progress.assignmentGroup;
@@ -1017,7 +1027,8 @@ public sealed class SonarTaskScreen : SonarScreen {
             () => {
                 if (!string.IsNullOrWhiteSpace(progress.completionUrl))
                     WebBrowserBridge.NavigateUrl(progress.completionUrl);
-            }, null, string.IsNullOrWhiteSpace(progress.completionUrl) ? "OK" : "Complete Study");
+            }, CopyCompletionCode(() => ShowExternalStudyEnded(progress)),
+            string.IsNullOrWhiteSpace(progress.completionUrl) ? "OK" : "Complete Study", "Copy Code");
     }
 
     void ShowExperimentEnded() {
@@ -1025,10 +1036,21 @@ public sealed class SonarTaskScreen : SonarScreen {
         endPopupShown = true;
 
         string message = "The experiment has ended.";
+        message += CompletionCodeText();
         if (AppState.ResolvedExperiment.ShowResultsAtEnd == YesNo.Yes) message += ResultsText(true);
 
-        Modal.Show(Manager.Root, "Experiment Ended", message, () => Manager.Selection(), null, "OK");
+        Modal.Show(Manager.Root, "Experiment Ended", message, () => Manager.Selection(), CopyCompletionCode(ShowExperimentEnded), "OK", "Copy Code");
     }
+
+    string CompletionCodeText() => string.IsNullOrEmpty(completionCode) ? "" :
+        "\n\nYour completion code is:\n<size=24><b>" + completionCode + "</b></size>\nPlease write it down or press Copy Code before continuing.";
+
+    // Second popup button: copies the code, then re-shows the same popup (Modal closes on any button).
+    System.Action CopyCompletionCode(System.Action reshow) => string.IsNullOrEmpty(completionCode) ? null : () => {
+        WebBrowserBridge.CopyText(completionCode);
+        endPopupShown = false;
+        reshow();
+    };
 
     static float Percent(int value, int total) => total <= 0 ? 0f : value * 100f / total;
 

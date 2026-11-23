@@ -654,6 +654,9 @@
             "ShowResultsAtEnd": {
               "$ref": "#/$defs/yesNo"
             },
+            "ShowCompletionCode": {
+              "$ref": "#/$defs/yesNo"
+            },
             "DeselectBTHSignalAfterClassification": {
               "$ref": "#/$defs/yesNo"
             },

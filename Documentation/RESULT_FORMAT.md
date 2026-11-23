@@ -54,6 +54,15 @@ The CSV header is unchanged. Videos played in the in-experiment instruction over
 
 `Alert_Type` holds the package-relative video path, and `Alert_Text` holds the playback position in seconds (invariant culture, three decimals). The phase and clock columns use the current runtime clocks, as `Instructions_Opened` does. Closing the overlay while a video plays is captured by `Instructions_Closed`, and no separate video event is written. The pre-task Instructions scene has no run, so it records no video events. Like all CSV events, these rows are mirrored to the LSL marker stream.
 
+## Completion code (FIXED42)
+
+When the experiment sets `ShowCompletionCode` = `Yes` and the final phase completes naturally, the run gets a unique completion code in the form `XXXXX-XXXXX` (10 characters from `ABCDEFGHJKMNPQRSTVWXYZ23456789`). It is saved in two places:
+
+- `.meta.json`: a `CompletionCode` field. It is empty for runs without a code, and on Web it is written when the run finishes.
+- CSV: a `Completion_Code` event written right after the final `EXP_Ended`, with the code in `Alert_Text`. Like all CSV events it is mirrored to the LSL marker stream.
+
+Exited, closed or disconnected runs never get a code. No CSV columns were added; the header is unchanged. In Local WebGL Test the code is shown and written to the browser console but, like all local-test results, is not stored.
+
 ## LSL events and metadata (FIXED37)
 
 The CSV header remains unchanged. New event types:

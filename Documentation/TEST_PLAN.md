@@ -193,3 +193,13 @@ Before using the simulator for data collection, exercise the exact Unity build, 
 - With `ShowResultsAtEnd` Yes, complete the experiment. The popup lists one `Phase Results` line per phase that matches the tally shown at the end of that phase, plus that phase's signal count, then `Overall Results` matching the sum of all classifications in the CSV. A single-phase experiment shows only the original `Results` block.
 - Check that the popup text fits on screen with 5+ phases on desktop and in a Web Local Test build.
 - An invalid value (for example `"Maybe"`) is rejected by Validate All and by Web upload.
+
+## Completion code (FIXED42)
+
+- With `ShowCompletionCode` omitted or `No`, the end popup shows no code and has only the OK button; `.meta.json` has an empty `CompletionCode` and the CSV has no `Completion_Code` row.
+- Set it to `Yes` and complete the experiment on desktop. The popup shows a code like `K7QMX-3PRDA` above any results. **Copy Code** puts it on the clipboard and the popup stays open. The same code is in `.meta.json` `CompletionCode` and in a `Completion_Code` CSV row (in `Alert_Text`) right after `EXP_Ended`.
+- Run it again: the code is different.
+- Repeat on Web: the code is in the server's `.meta.json` after the run finishes, and **Copy Code** works in the browser.
+- Exit the experiment early, or close the tab mid-run: no code is shown or saved.
+- External study whose final experiment has it set to `Yes`: the Study Complete popup shows the code above the Complete Study button, and Copy Code works before redirecting.
+- An invalid value (for example `"Maybe"`) is rejected by Validate All and by Web upload.

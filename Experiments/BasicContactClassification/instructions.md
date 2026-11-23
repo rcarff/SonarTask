@@ -1,3 +1,37 @@
+# Header with one Hash
+## Header with two Hashes
+### Header with three Hashes
+
+---
+
+Your specific tasks are to:
+   - Select contacts displayed in the lower BTH waterfall window.
+   - Classify the signal that appears in the upper LOFAR frequency waterfall window by choosing appropriate classification (vessels, submarine, or biologics) and clicking **Confirm**.
+   - Choose confidence level for each classification.
+   - During Orientation and Practice blocks, utilize Training Instructions for better understanding of the different vessel signals/frequencies.
+
+> Note that while you get to learn typical signals from each category during the orientation and practice blocks, the contacts you will encounter throughout the experiment will all have slightly different signals.
+
+---
+
+Following is a list with dashes '-'
+- First Item
+- Second Item
+- Third Item
+
+Numbered List:
+1. First
+2. Second
+3. Third
+
+Quote, shown as an indented, lighter line.
+> Quote, shown as an indented, lighter line.
+
+Inline emphasis, **bold**, *italic*, `code`
+
+![Image Alt Text](Images/layout.png){width=70% align=center}
+
+
 # Basic Contact Classification
 
 This package is included as a **test experiment** for the SONAR Simulator Task.

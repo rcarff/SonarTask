@@ -24,6 +24,13 @@ namespace SonarTask.UI
         bool lastWasSpacer;
         Transform listContainer;
         bool listIsOrdered;
+        Transform quoteContainer;
+
+        // Bullets and the quote bar are drawn as geometry rather than glyphs (• / ▌): WebGL
+        // builds have no OS font fallback, so those characters silently vanish there.
+        const float ListIndent = 22f, ListNestIndent = 22f, ListMarkerWidth = 20f, OrderedMarkerWidth = 30f, ListLineHeight = 24f;
+        static readonly Color QuoteBarColor = new Color(.55f, .58f, .62f, 1f);
+        static readonly Color QuoteTextColor = new Color(.82f, .84f, .86f);
 
         /// <summary>Instruction video playback events: (eventType, packageRelativePath, positionSec).</summary>
         public event System.Action<string, string, double> VideoEvent;
@@ -35,6 +42,7 @@ namespace SonarTask.UI
             lastWasSpacer = false;
             listContainer = null;
             listIsOrdered = false;
+            quoteContainer = null;
 
             foreach (Transform c in transform)
                 Destroy(c.gameObject);
@@ -50,6 +58,7 @@ namespace SonarTask.UI
                 if (string.IsNullOrWhiteSpace(line))
                 {
                     EndList();
+                    EndQuote();
                     AddSpacerIfNeeded(10);
                     continue;
                 }
@@ -57,26 +66,34 @@ namespace SonarTask.UI
                 bool orderedListItem = Regex.IsMatch(line, @"^\s*\d+\.\s");
                 bool unorderedListItem = Regex.IsMatch(line, @"^\s*[-*]\s");
 
-                if (orderedListItem)
+                if (orderedListItem || unorderedListItem)
                 {
-                    EnsureList(true);
-                    AddListText(Regex.Replace(line.TrimStart(), @"^(\d+)\.\s", "$1.  "));
-                    hasContent = true;
-                    lastWasSpacer = false;
-                    continue;
-                }
-
-                if (unorderedListItem)
-                {
-                    EnsureList(false);
-                    string trimmed = line.TrimStart();
-                    AddListText("•  " + trimmed.Substring(2));
+                    EndQuote();
+                    EnsureList(orderedListItem);
+                    int level = Mathf.Min(4, (line.Length - line.TrimStart().Length) / 2);
+                    var item = Regex.Match(line.TrimStart(), @"^(\d+\.|[-*])\s+(.*)$");
+                    AddListItem(orderedListItem ? item.Groups[1].Value : null, item.Groups[2].Value, level);
                     hasContent = true;
                     lastWasSpacer = false;
                     continue;
                 }
 
                 EndList();
+
+                if (line == ">" || line.StartsWith("> "))
+                {
+                    EnsureQuote();
+                    string quoted = line.Length > 2 ? line.Substring(2) : "";
+                    if (quoted.Trim().Length == 0)
+                        QuoteSpacer(8);
+                    else
+                        AddQuoteText(quoted);
+                    hasContent = true;
+                    lastWasSpacer = false;
+                    continue;
+                }
+
+                EndQuote();
 
                 var media = Regex.Match(line.Trim(), @"^!\[(.*?)\]\((.*?)\)(?:\s*\{(.*?)\})?$");
                 if (media.Success)
@@ -98,8 +115,6 @@ namespace SonarTask.UI
                     AddHeading(line.Substring(3), 23, 14);
                 else if (line.StartsWith("# "))
                     AddHeading(line.Substring(2), 28, 18);
-                else if (line.StartsWith("> "))
-                    AddText("▌ " + line.Substring(2), 17, new Color(.82f, .84f, .86f));
                 else if (line.StartsWith("---"))
                     AddRule();
                 else
@@ -110,6 +125,7 @@ namespace SonarTask.UI
             }
 
             EndList();
+            EndQuote();
             StartCoroutine(RebuildNextFrame());
         }
 
@@ -133,9 +149,47 @@ namespace SonarTask.UI
             listContainer = null;
         }
 
-        void AddListText(string value)
+        /// <summary>
+        /// One list item: an indented row holding a fixed-width marker cell (a drawn dot, or the
+        /// item number) and a flexible text column, so wrapped lines hang under the text rather
+        /// than under the marker. <paramref name="number"/> is null for unordered items.
+        /// </summary>
+        void AddListItem(string number, string value, int level)
         {
-            var t = UIFactory.Text(Inline(value), listContainer, 17, TextAnchor.UpperLeft);
+            var row = UIFactory.GO("ListItem", listContainer);
+            var h = row.AddComponent<HorizontalLayoutGroup>();
+            h.padding = new RectOffset(Mathf.RoundToInt(ListIndent + level * ListNestIndent), 0, 0, 0);
+            h.spacing = 0;
+            h.childAlignment = TextAnchor.UpperLeft;
+            h.childControlWidth = true; h.childControlHeight = true;
+            h.childForceExpandWidth = false; h.childForceExpandHeight = false;
+
+            float markerWidth = number != null ? OrderedMarkerWidth : ListMarkerWidth;
+            var marker = UIFactory.GO("Marker", row.transform);
+            var mle = marker.AddComponent<LayoutElement>();
+            mle.minWidth = mle.preferredWidth = markerWidth;
+            mle.flexibleWidth = 0;
+            mle.minHeight = mle.preferredHeight = ListLineHeight;
+            if (number != null)
+            {
+                var n = UIFactory.Text(number, marker.transform, 17, TextAnchor.UpperLeft);
+                n.raycastTarget = false;
+                var nr = n.rectTransform;
+                nr.offsetMin = Vector2.zero; nr.offsetMax = Vector2.zero;
+            }
+            else
+            {
+                // Centered vertically on the first line of the 17px item text.
+                var dot = UIFactory.CircleGraphic("Bullet", marker.transform, false, Color.lightGray);
+                dot.raycastTarget = false;
+                var dr = dot.rectTransform;
+                dr.anchorMin = dr.anchorMax = new Vector2(.35f, 1f);
+                dr.pivot = new Vector2(.5f, .5f);
+                dr.sizeDelta = new Vector2(8f, 8f);
+                dr.anchoredPosition = new Vector2(0f, -8f);
+            }
+
+            var t = UIFactory.Text(Inline(value), row.transform, 17, TextAnchor.UpperLeft);
             t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Overflow;
@@ -144,9 +198,69 @@ namespace SonarTask.UI
             // while the text element uses a slightly tighter minimum line height than
             // normal paragraphs. Wrapped items still expand to their preferred height.
             var le = t.gameObject.AddComponent<LayoutElement>();
-            le.minHeight = 24f;
+            le.minHeight = ListLineHeight;
             le.preferredHeight = -1f;
             le.flexibleHeight = 0f;
+            le.minWidth = 0f;
+            le.flexibleWidth = 1f;
+        }
+
+        /// <summary>Consecutive "&gt; " lines share one block with a drawn gray bar on the left.</summary>
+        void EnsureQuote()
+        {
+            if (quoteContainer != null)
+                return;
+
+            var row = UIFactory.GO("Quote", transform);
+            var h = row.AddComponent<HorizontalLayoutGroup>();
+            h.padding = new RectOffset(4, 0, 0, 0);
+            h.spacing = 12;
+            h.childAlignment = TextAnchor.UpperLeft;
+            h.childControlWidth = true; h.childControlHeight = true;
+            h.childForceExpandWidth = false; h.childForceExpandHeight = true;
+            var rle = row.AddComponent<LayoutElement>();
+            rle.flexibleHeight = 0f;
+
+            var bar = UIFactory.Panel("QuoteBar", row.transform, QuoteBarColor);
+            bar.raycastTarget = false;
+            var ble = bar.gameObject.AddComponent<LayoutElement>();
+            ble.minWidth = ble.preferredWidth = 4f;
+            ble.flexibleWidth = 0f;
+
+            var column = UIFactory.GO("QuoteText", row.transform);
+            var v = UIFactory.VLayout(column.transform, 2f, 0);
+            v.padding = new RectOffset(0, 0, 2, 2);
+            v.childAlignment = TextAnchor.UpperLeft;
+            var cle = column.AddComponent<LayoutElement>();
+            cle.minWidth = 0f;
+            cle.flexibleWidth = 1f;
+            quoteContainer = column.transform;
+        }
+
+        void EndQuote()
+        {
+            quoteContainer = null;
+        }
+
+        void AddQuoteText(string value)
+        {
+            var t = UIFactory.Text(Inline(value), quoteContainer, 17, TextAnchor.UpperLeft);
+            t.supportRichText = true;
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            t.verticalOverflow = VerticalWrapMode.Overflow;
+            t.color = QuoteTextColor;
+            var le = t.gameObject.AddComponent<LayoutElement>();
+            le.minHeight = ListLineHeight;
+            le.preferredHeight = -1f;
+            le.flexibleHeight = 0f;
+        }
+
+        void QuoteSpacer(float height)
+        {
+            var g = UIFactory.GO("Spacer", quoteContainer);
+            var le = g.AddComponent<LayoutElement>();
+            le.minHeight = le.preferredHeight = height;
+            le.flexibleHeight = 0;
         }
 
         void AddHeading(string text, int size, float topSpace)

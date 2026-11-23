@@ -322,7 +322,9 @@ app.MapPost("/results/runs/{runId}/finish", async (HttpContext c, string runId, 
     var row = await Db.GetRun(dbFile, runId);
     if (row is null) return Results.NotFound();
     await Db.Finish(dbFile, runId, f.completed, f.terminationReason, f.endedUtc);
-    await RewriteMeta(Path.Combine(resultRoot, row.Value.meta), f.completed, f.terminationReason, f.endedUtc);
+    // Completion codes are client-generated XXXXX-XXXXX tokens; anything else is not stored.
+    var completionCode = f.completed && f.completionCode is { Length: <= 32 } code && System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Z0-9-]+$") ? code : "";
+    await RewriteMeta(Path.Combine(resultRoot, row.Value.meta), f.completed, f.terminationReason, f.endedUtc, completionCode);
     if (f.completed)
     {
         var context = await Db.GetRunExternalContext(dbFile, runId);
@@ -901,12 +903,13 @@ static async Task CopyDirectoryAsync(string source, string destination)
     }
 }
 
-static async Task RewriteMeta(string path, bool completed, string reason, string ended)
+static async Task RewriteMeta(string path, bool completed, string reason, string ended, string completionCode = "")
 {
     if (!File.Exists(path)) return;
     using var d = JsonDocument.Parse(await File.ReadAllTextAsync(path));
     var map = JsonSerializer.Deserialize<Dictionary<string, object?>>(d.RootElement.GetRawText()) ?? new();
     map["Completed"] = completed; map["TerminationReason"] = reason; map["EndedUtc"] = ended;
+    if (!string.IsNullOrEmpty(completionCode)) map["CompletionCode"] = completionCode;
     await File.WriteAllTextAsync(path, JsonSerializer.Serialize(map, new JsonSerializerOptions { WriteIndented = true }));
 }
 
@@ -926,7 +929,7 @@ record PasswordRequest(string password);
 record ChangePasswordRequest(string currentPassword, string newPassword);
 record UploadBase64(string fileName, string base64);
 record SelectedFiles(string[] files);
-record FinishRequest(bool completed, string terminationReason, string endedUtc);
+record FinishRequest(bool completed, string terminationReason, string endedUtc, string? completionCode = null);
 record EventEnvelope(long sequence, ResultEventDto @event);
 record ExternalLaunchRequest(string provider, string participantId, string providerStudyId, string? sessionId, string? assignmentId, string? testToken);
 record ResetStudyDataRequest(bool deleteResults);
@@ -1140,7 +1143,7 @@ static class ExperimentFiles
             if(p.Name=="AutoStartCountdownSec"){
                 if(p.Value.ValueKind!=JsonValueKind.Null && (p.Value.ValueKind!=JsonValueKind.Number || !p.Value.TryGetSingle(out var n) || !float.IsFinite(n) || n<0 || n>3600))errors.Add(label+" must be 0..3600 seconds.");
             }
-            if(p.Name is "AutoStart" or "TrainingAllowed" or "AlertEnabled" or "TrainingAreaEnabled" or "FeedbackEnabled" or "ClassificationTallyEnabled" or "AlertsEnabled" or "BTHOverlapAudio" or "SignalAudioEnabled" or "HideLofarSignalsIfNoSelectedBTH" or "ShowElapsedTime" or "ShowRemainingTime" or "ShowResultsAtEnd" or "DeselectBTHSignalAfterClassification" or "DisablePauseAndExit" or "AutoShowInstructions" or "ResetScoreWhenPhaseStarts") {
+            if(p.Name is "AutoStart" or "TrainingAllowed" or "AlertEnabled" or "TrainingAreaEnabled" or "FeedbackEnabled" or "ClassificationTallyEnabled" or "AlertsEnabled" or "BTHOverlapAudio" or "SignalAudioEnabled" or "HideLofarSignalsIfNoSelectedBTH" or "ShowElapsedTime" or "ShowRemainingTime" or "ShowResultsAtEnd" or "ShowCompletionCode" or "DeselectBTHSignalAfterClassification" or "DisablePauseAndExit" or "AutoShowInstructions" or "ResetScoreWhenPhaseStarts") {
                 var v=p.Value;bool valid=v.ValueKind is JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null || v.ValueKind==JsonValueKind.Number && v.TryGetInt32(out var n) && (n==0||n==1) || v.ValueKind==JsonValueKind.String && new[]{"Yes","No","True","False"}.Contains(v.GetString(),StringComparer.OrdinalIgnoreCase);
                 if(!valid)errors.Add(label+" must be Yes/No, True/False, a boolean or 1/0.");
             }

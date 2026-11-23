@@ -8,7 +8,7 @@ public static class ExperimentResolver {
         var errors = ExperimentValidator.Validate(definition);
         if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
 
-        var result = new ResolvedExperiment { Source = definition, ShowResultsAtEnd = definition.ExperimentSettings.ShowResultsAtEnd };
+        var result = new ResolvedExperiment { Source = definition, ShowResultsAtEnd = definition.ExperimentSettings.ShowResultsAtEnd, ShowCompletionCode = definition.ExperimentSettings.ShowCompletionCode };
         var lsl = definition.ExperimentSettings;
         result.LslEnabled = lsl.LslEnabled == YesNo.Yes;
         result.LslWaterfallStreams = (lsl.LslWaterfallStreams ?? YesNo.Yes) == YesNo.Yes;

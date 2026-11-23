@@ -115,6 +115,7 @@ Yes/No fields accept case-insensitive `Yes`, `No`, `True`, `False`, JSON boolean
 | `ResetScoreWhenPhaseStarts` | `Yes` | yes | See [ResetScoreWhenPhaseStarts](#resetscorewhenphasestarts). |
 | `DeselectBTHSignalAfterClassification` | `Yes` | yes | See [Phase controls and instructions](#phase-controls-and-instructions). |
 | `ShowResultsAtEnd` | `No` | no | See [End-of-experiment results](#end-of-experiment-results). |
+| `ShowCompletionCode` | `No` | no | See [Completion code](#completion-code). |
 
 ### Alerts
 
@@ -354,6 +355,14 @@ Clearing the BTH selection returns the LOFAR immediately to the appropriate unse
 
 When the experiment has more than one phase, the popup first lists a `Phase Results` line for each phase, then the `Overall Results` for the whole run. Each phase line shows the tally exactly as the feedback section displayed it when that phase ended, plus the signals presented in that phase. If a phase sets `ResetScoreWhenPhaseStarts` to `No`, its line therefore includes the carried-over counts from earlier phases. The overall totals always count every response once.
 
+### Completion code
+
+`ExperimentSettings.ShowCompletionCode` (`"Yes"`/`"No"`, default `"No"`) gives each participant a unique code to prove they finished, for example to paste into a recruitment provider. When it is `Yes` and the final phase ends naturally, the app generates a new code such as `K7QMX-3PRDA` and shows it at the top of the end popup, together with a **Copy Code** button. The code is also saved with the run (see `Documentation/RESULT_FORMAT.md`). Runs that are exited or aborted get no code.
+
+Codes are 10 random characters from an alphabet without look-alike characters (no `0`/`O`, `1`/`I`/`L` or `U`), drawn from a cryptographic random generator for every run. They are not derived from the seed, so they differ even between identical runs, and the chance of two runs sharing a code is negligible (about 1 in 590 trillion per pair).
+
+In an external-study sequence, each experiment with `ShowCompletionCode` = `Yes` saves its own code, but only the final experiment's popup is shown, so set it on the last experiment in the sequence for the participant to see it.
+
 ## Optional LSL settings (FIXED37)
 
 Add these experiment-level fields inside `ExperimentSettings`; they are not phase overrides:
@@ -375,15 +384,16 @@ Instructions files use a small Markdown subset. Native and Web builds render it 
 | Syntax | Result |
 |---|---|
 | `# `, `## `, `### ` | Headings, three sizes. |
-| `- item` or `* item` | Bulleted list. |
-| `1. item` | Numbered list. |
-| `> text` | Quote, shown as an indented, lighter line. |
+| `- item` or `* item` | Bulleted list, indented, with a drawn bullet. Wrapped lines align under the item text. |
+| `1. item` | Numbered list, indented like bulleted lists. |
+| two leading spaces per level before `-`, `*` or `1.` | Indents that list item one more level (up to four levels). |
+| `> text` | Quote: lighter text beside a gray bar. Consecutive `>` lines form one block; a bare `>` line adds a small gap inside it. |
 | `---` | Horizontal rule. |
 | `**bold**`, `*italic*`, `` `code` `` | Inline emphasis, usable within any text line. |
 | blank line | Paragraph break; also ends a list. |
 | `![alt](path){attrs}` on its own line | Image or video (below). |
 
-Other Markdown, such as links, tables, nested lists and HTML, is not interpreted and appears as plain text. Long instructions scroll.
+Other Markdown, such as links, tables and HTML, is not interpreted and appears as plain text. Long instructions scroll.
 
 ### Images and videos in instructions
 

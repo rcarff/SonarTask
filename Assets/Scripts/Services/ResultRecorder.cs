@@ -32,6 +32,8 @@ public sealed class RunMetadata {
     public string WaterfallPalette = "";
     public long RandomizationSeed;
     public bool Completed;
+    // Set only when ShowCompletionCode = Yes and the final phase completes naturally.
+    public string CompletionCode = "";
 
     // External-study metadata. Empty for normal desktop/operator-launched runs.
     public string LaunchMode = "Normal";
@@ -191,6 +193,34 @@ public sealed class ResultRecorder : MonoBehaviour {
         if (finishPending) yield return FinishWeb();
     }
 
+    // Unambiguous alphabet (no 0/O, 1/I/L, U) so participants can retype the code reliably.
+    const string CompletionCodeAlphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
+
+    /// <summary>
+    /// New participant completion code, formatted XXXXX-XXXXX (10 symbols from a 30-symbol alphabet,
+    /// about 49 bits). Uses a cryptographic RNG: it is outside the deterministic simulation and must
+    /// not be guessable or repeat across runs.
+    /// </summary>
+    public static string NewCompletionCode() {
+        var bytes = new byte[10];
+        var sb = new StringBuilder(11);
+        using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create()) {
+            for (int i = 0; i < 10; i++) {
+                // Rejection sampling keeps every symbol equally likely.
+                do rng.GetBytes(bytes, i, 1); while (bytes[i] >= 240);
+                if (i == 5) sb.Append('-');
+                sb.Append(CompletionCodeAlphabet[bytes[i] % CompletionCodeAlphabet.Length]);
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Records the completion code in the run metadata. Call before <see cref="Finish"/>.</summary>
+    public void SetCompletionCode(string code) {
+        if (Metadata == null || finished || finishPending) return;
+        Metadata.CompletionCode = code ?? "";
+    }
+
     public void Finish(bool completed, string reason, Action<bool,string> done = null) {
         if (finished || finishPending || Metadata == null) {
             done?.Invoke(finished, finished ? null : "Result finalization is already in progress.");
@@ -207,7 +237,7 @@ public sealed class ResultRecorder : MonoBehaviour {
         if (AppState.IsLocalWebDevelopment) {
             finished = true;
             finishPending = false;
-            Debug.Log($"SONAR local WebGL development run finished: {localWebEvents.Count} result events captured in memory.");
+            Debug.Log($"SONAR local WebGL development run finished: {localWebEvents.Count} result events captured in memory." + (string.IsNullOrEmpty(Metadata.CompletionCode) ? "" : " Completion code: " + Metadata.CompletionCode));
             finishCallback?.Invoke(true, null);
             finishCallback = null;
             Destroy(gameObject);
@@ -233,7 +263,7 @@ public sealed class ResultRecorder : MonoBehaviour {
 
     IEnumerator FinishWeb() {
         if (finished) yield break;
-        var body = JsonConvert.SerializeObject(new { completed = Metadata.Completed, terminationReason = Metadata.TerminationReason, endedUtc = Metadata.EndedUtc });
+        var body = JsonConvert.SerializeObject(new { completed = Metadata.Completed, terminationReason = Metadata.TerminationReason, endedUtc = Metadata.EndedUtc, completionCode = Metadata.CompletionCode });
         using var request = JsonRequest("/api/results/runs/" + Metadata.RunId + "/finish", "POST", body);
         yield return request.SendWebRequest();
         if (request.result == UnityWebRequest.Result.Success) {
