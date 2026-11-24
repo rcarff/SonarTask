@@ -322,6 +322,24 @@ docker compose down
 
 Because the data directories are bind mounts, `docker compose down`, image upgrades and container recreation do not erase experiments/results.
 
+Do the following to update a running system:
+```bash
+cd Server/Sonar.Server/
+cp Program.cs /opt/sonar/Sonar.Server/Program.cs
+rm -rf bin
+rm -rf obj
+rm -rf *.csproj
+cd /opt/sonar/Deploy/
+rm -rf WebBuild
+cp -r ~/Server/Deploy/WebBuild ./WebBuild
+cd ..
+sudo chmod -R a+rX /opt/sonar/Deploy/WebBuild
+sudo docker compose build --no-cache api
+sudo docker compose up -d --force-recreate api
+docker compose down
+docker compose up -d --build
+```
+
 # 7. Web behavior and administration
 
 The Web app begins at the shared operator-password login. Each browser has an independent cookie session, so several subjects can run simultaneously.

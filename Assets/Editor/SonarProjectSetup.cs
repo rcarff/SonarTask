@@ -111,7 +111,7 @@ namespace SonarTask.EditorTools
             EditorBuildSettings.scenes = build;
 
             PlayerSettings.productName = "SONAR Simulator Task";
-            PlayerSettings.bundleVersion = "0.1.0";
+            PlayerSettings.bundleVersion = "0.1.3";
             PlayerSettings.companyName = "SONAR Research";
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
